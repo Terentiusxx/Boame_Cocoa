@@ -1,0 +1,389 @@
+@import "tailwindcss";
+
+:root {
+  --background: #F4FAF4;
+  --foreground: #171717;
+  --primary-green: #2d7d32;
+  --secondary-green: #388e3c;
+  --light-green: #4caf50;
+  --bg-gray: #f5f5f5;
+  --card-bg: #ffffff;
+  --border-radius: 16px;
+  --border-radius-sm: 12px;
+
+/* Design Tokens from Figma */
+  --text-titles: #003300;
+  --sub-text-style: #707b81;
+  --input-text: #000000;
+  --buttons: #1f4e20;
+  --hyperlink: #0b539b;
+  --sub-titles: #1f4e20;
+  --high-urgency: #ec221f;
+  --medium-urgency: #bf6a02;
+  
+
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+  --color-primary-green: var(--primary-green);
+  --color-secondary-green: var(--secondary-green);
+  --color-light-green: var(--light-green);
+  --color-bg-gray: var(--bg-gray);
+  --color-card-bg: var(--card-bg);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --background: #0a0a0a;
+    --foreground: #ededed;
+    --bg-gray: #1a1a1a;
+    --card-bg: #2a2a2a;
+  }
+}
+
+body {
+  background: var(--background);
+  color: var(--input-text);
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxigen', 'Ubuntu', 'Cantarell', sans-serif;
+  margin: 0;
+  padding: 0;
+}
+
+/* Mobile-first responsive design */
+.mobile-container {
+  max-width: 375px;
+  margin: 0 auto;
+  min-height: 100vh;
+  background: var(--background);
+  position: relative;
+  box-shadow: 0 0 20px rgba(0, 0, 0, 0.1);
+}
+
+.status-bar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 20px;
+  font-size: 14px;
+  font-weight: 600;
+  background: var(--background);
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+
+.green-button {
+  background: var(--buttons);
+  color: white;
+  border: none;
+  padding: 16px 24px;
+  border-radius: var(--border-radius);
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+  width: 100%;
+  text-align: center;
+  text-decoration: none;
+  display: inline-block;
+}
+
+.green-button:hover {
+  background: var(--sub-titles);
+  opacity: 0.9;
+}
+
+.disease-card {
+  background: #f8f9fa;
+  border-radius: var(--border-radius);
+  padding: 16px;
+  margin: 12px 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  cursor: pointer;
+  transition: transform 0.2s ease;
+}
+
+.disease-card:hover {
+  transform: translateX(4px);
+}
+
+.disease-info {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.disease-icon {
+  width: 48px;
+  height: 48px;
+  border-radius: var(--border-radius-sm);
+  background: #e8f5e8;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 24px;
+}
+
+.urgency-high {
+  color: var(--high-urgency);
+  font-weight: 600;
+  font-size: 14px;
+}
+
+.urgency-medium {
+  color: var(--medium-urgency);
+  font-weight: 600;
+  font-size: 14px;
+}
+
+.urgency-low {
+  color: var(--buttons);
+  font-weight: 600;
+  font-size: 14px;
+}
+
+.back-button {
+  background: none;
+  border: none;
+  font-size: 18px;
+  cursor: pointer;
+  padding: 8px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+}
+
+.back-button:hover {
+  background: rgba(0, 0, 0, 0.05);
+}
+
+/* Typography Classes Using Figma Design Tokens */
+.text-title {
+  color: var(--text-titles);
+  font-weight: 700;
+}
+
+.text-subtitle {
+  color: var(--sub-titles);
+  font-weight: 600;
+}
+
+.text-sub-style {
+  color: var(--sub-text-style);
+  font-weight: 400;
+}
+
+.text-input {
+  color: var(--input-text);
+}
+
+.text-hyperlink {
+  color: var(--hyperlink);
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.text-hyperlink:hover {
+  opacity: 0.8;
+}
+
+/* Updated input styling */
+input[type="text"],
+input[type="email"], 
+input[type="password"],
+input[type="tel"],
+textarea {
+  color: var(--input-text);
+  background: var(--background);
+  border: 1px solid var(--sub-text-style);
+}
+
+input[type="text"]:focus,
+input[type="email"]:focus,
+input[type="password"]:focus,
+input[type="tel"]:focus,
+textarea:focus {
+  border-color: var(--buttons);
+  outline: none;
+  box-shadow: 0 0 0 2px rgba(31, 78, 32, 0.2);
+}
+
+/* Learn Card Styles */
+.learn-card {
+  background: white;
+  border-radius: 16px;
+  padding: 16px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  border: 1px solid #f0f0f0;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  text-align: center;
+}
+
+.learn-card:hover {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  transform: translateY(-2px);
+}
+
+.learn-card-icon {
+  width: 64px;
+  height: 64px;
+  margin: 0 auto 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.learn-card-button {
+  display: inline-block;
+  padding: 8px 16px;
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 500;
+  text-align: center;
+  color: white;
+  text-decoration: none;
+  transition: opacity 0.2s ease;
+}
+
+.learn-card-button:hover {
+  opacity: 0.9;
+}
+
+.learn-card-button.red {
+  background-color: var(--high-urgency);
+}
+
+.learn-card-button.orange {
+  background-color: var(--medium-urgency);
+}
+
+.learn-card-button.green {
+  background-color: var(--buttons);
+}
+
+/* Settings Items */
+.settings-section {
+  margin-bottom: 24px;
+}
+
+.settings-section-header {
+  padding: 8px 24px;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--sub-text-style);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.settings-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 24px;
+  background: white;
+  border-bottom: 1px solid #f0f0f0;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+}
+
+.settings-item:hover {
+  background-color: #f8f9fa;
+}
+
+.settings-item:last-child {
+  border-bottom: none;
+}
+
+.settings-item-content {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.settings-item-icon {
+  font-size: 18px;
+}
+
+.settings-item-title {
+  color: var(--input-text);
+  font-weight: 500;
+}
+
+.settings-item-arrow {
+  color: var(--sub-text-style);
+  font-size: 18px;
+}
+
+/* Bottom Navigation Styles */
+.bottom-nav {
+  position: fixed;
+  bottom: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  background: white;
+  border-top: 1px solid #f0f0f0;
+  padding: 12px 24px;
+  max-width: 375px;
+  width: 100%;
+  box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.1);
+  z-index: 50;
+}
+
+.bottom-nav-container {
+  display: flex;
+  align-items: center;
+  justify-content: space-around;
+  position: relative;
+}
+
+.nav-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 8px;
+  border-radius: 8px;
+  transition: background-color 0.2s ease;
+  text-decoration: none;
+}
+
+.nav-item:hover {
+  background-color: rgba(0, 0, 0, 0.05);
+}
+
+.nav-item-icon {
+  font-size: 20px;
+}
+
+.scan-button {
+  position: relative;
+  width: 56px;
+  height: 56px;
+  background: var(--buttons);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  transition: transform 0.2s ease;
+  text-decoration: none;
+}
+
+.scan-button:hover {
+  transform: scale(1.05);
+}
+
+.scan-button-icon {
+  color: white;
+  font-size: 22px;
+}
