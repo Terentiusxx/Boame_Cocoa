@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 
 function StatusBar() {
   return (
-    <div className="status-bar text-white">
+    <div className="flex justify-between items-center px-5 py-2 text-sm font-semibold bg-background sticky top-0 z-10 text-white">
       {/* <span>9:41</span> */}
       <div className="flex items-center gap-1">
         <div className="flex gap-1">
@@ -39,7 +39,7 @@ export default function Splash() {
 
   return (
     <div 
-      className="mobile-container bg-gradient-to-b from-green-800 via-green-600 to-green-700 cursor-pointer" 
+      className="max-w-mobile mx-auto min-h-screen bg-background relative shadow-mobile bg-gradient-to-b from-green-800 via-green-600 to-green-700 cursor-pointer" 
       onClick={handleTap}
     >
       <StatusBar />

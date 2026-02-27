@@ -5,7 +5,7 @@ import { useState } from "react";
 
 function StatusBar() {
   return (
-    <div className="status-bar">
+    <div className="flex justify-between items-center px-5 py-2 text-sm font-semibold bg-background sticky top-0 z-10">
       {/* <span>9:41</span> */}
       <div className="flex items-center gap-1">
         <div className="flex gap-1">
@@ -34,16 +34,16 @@ export default function PrivacySettings() {
   };
 
   return (
-    <div className="mobile-container">
+    <div className="max-w-mobile mx-auto min-h-screen bg-background relative shadow-mobile">
       <StatusBar />
       
       <div className="pb-6">
         {/* Header */}
         <div className="flex items-center justify-between py-4 mb-6 px-6">
-          <Link href="/settings" className="back-button">
+          <Link href="/settings" className="bg-transparent border-none text-lg cursor-pointer p-2 rounded-full flex items-center justify-center w-9 h-9 hover:bg-black/5">
             <span className="text-xl">‹</span>
           </Link>
-          <h1 className="text-xl font-semibold text-title">Privacy</h1>
+          <h1 className="text-xl font-semibold text-brand-text-titles">Privacy</h1>
           <div className="w-9"></div>
         </div>
         

@@ -12,7 +12,7 @@ export default function RootPage() {
   }, [router]);
 
   return (
-    <div className="mobile-container">
+    <div className="max-w-mobile mx-auto min-h-screen bg-background relative shadow-mobile">
       <div className="flex items-center justify-center h-full">
         <div className="text-center">
           <h1 className="text-2xl font-bold text-green-700 mb-4">Boame Cocoa</h1>

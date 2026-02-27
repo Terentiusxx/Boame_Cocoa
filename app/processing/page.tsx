@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 
 function StatusBar() {
   return (
-    <div className="status-bar">
+    <div className="flex justify-between items-center px-5 py-2 text-sm font-semibold bg-background sticky top-0 z-10">
       {/* <span>9:41</span> */}
       <div className="flex items-center gap-1">
         <div className="flex gap-1">
@@ -37,7 +37,7 @@ export default function Processing() {
   }, [router]);
 
   return (
-    <div className="mobile-container">
+    <div className="max-w-mobile mx-auto min-h-screen bg-background relative shadow-mobile">
       <StatusBar />
       
       <div className="flex flex-col items-center justify-center h-full px-6 text-center">

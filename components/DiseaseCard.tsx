@@ -1,6 +1,7 @@
 'use client';
 
 import Image from "next/image";
+import { useRouter } from 'next/navigation';
 
 interface DiseaseCardProps {
   id: string;
@@ -19,23 +20,30 @@ export default function DiseaseCard({
   urgencyClass, 
   onClick 
 }: DiseaseCardProps) {
+  const router = useRouter();
+  
   const handleClick = () => {
     if (onClick) {
       onClick();
     } else {
       // Default navigation behavior
-      if (id === 'unknown') {
-        window.location.href = '/results/unknown';
-      } else {
-        window.location.href = `/results/${id}`;
-      }
+      router.push(`/results/${id}`);
     }
   };
 
+  const urgencyColorMap: Record<string, string> = {
+    'urgency-high': 'text-urgency-high',
+    'urgency-medium': 'text-urgency-medium',
+    'urgency-low': 'text-brand-buttons',
+  };
+
   return (
-    <div className="disease-card" onClick={handleClick}>
-      <div className="disease-info">
-        <div className="disease-icon">
+    <div 
+      className="bg-gray-50 rounded-brand p-4 my-3 flex items-center justify-between cursor-pointer transition-transform hover:translate-x-1"
+      onClick={handleClick}
+    >
+      <div className="flex items-center gap-4">
+        <div className="w-12 h-12 rounded-brand-sm bg-green-50 flex items-center justify-center text-2xl">
           {image ? (
             <Image
               src={image}
@@ -48,7 +56,7 @@ export default function DiseaseCard({
         </div>
         <div>
           <h3 className="font-semibold text-gray-900 mb-1">{name}</h3>
-          <p className={urgencyClass}>{urgency}</p>
+          <p className={`${urgencyColorMap[urgencyClass] || 'text-gray-600'} font-semibold text-sm`}>{urgency}</p>
         </div>
       </div>
       <span className="text-gray-400 text-xl">❯</span>

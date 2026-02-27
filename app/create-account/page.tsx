@@ -6,7 +6,7 @@ import { useRouter } from 'next/navigation';
 
 function StatusBar() {
   return (
-    <div className="status-bar">
+    <div className="flex justify-between items-center px-5 py-2 text-sm font-semibold bg-background sticky top-0 z-10">
       {/* <span>9:41</span> */}
       <div className="flex items-center gap-1">
         <div className="flex gap-1">
@@ -39,13 +39,13 @@ export default function CreateAccount() {
   };
 
   return (
-    <div className="mobile-container">
+    <div className="max-w-mobile mx-auto min-h-screen bg-background relative shadow-mobile">
       <StatusBar />
       
       <div className="px-6 pb-6 flex flex-col h-full">
         {/* Header */}
         <div className="flex items-center justify-between py-4 mb-8">
-          <Link href="/login" className="back-button">
+          <Link href="/login" className="bg-transparent border-none text-lg cursor-pointer p-2 rounded-full flex items-center justify-center w-9 h-9 hover:bg-black/5">
             <span className="text-xl">‹</span>
           </Link>
           <div className="flex-1"></div>
@@ -54,14 +54,14 @@ export default function CreateAccount() {
         {/* Create Account Form */}
         <div className="flex-1 flex flex-col justify-center">
           <div className="text-center mb-12">
-            <h1 className="text-3xl font-bold text-title mb-2">Create Account</h1>
-            <p className="text-sub-style text-lg">Fill in the details to sign up</p>
+            <h1 className="text-3xl font-bold text-brand-text-titles mb-2">Create Account</h1>
+            <p className="text-brand-sub-text font-normal text-lg">Fill in the details to sign up</p>
           </div>
 
           <form onSubmit={handleSignUp} className="space-y-6">
             {/* Name Field */}
             <div>
-              <label className="block text-sm font-medium text-subtitle mb-3">
+              <label className="block text-sm font-medium text-brand-sub-titles font-semibold mb-3">
                 Your Name
               </label>
               <input
@@ -76,7 +76,7 @@ export default function CreateAccount() {
 
             {/* Email Field */}
             <div>
-              <label className="block text-sm font-medium text-subtitle mb-3">
+              <label className="block text-sm font-medium text-brand-sub-titles font-semibold mb-3">
                 Email Address
               </label>
               <input
@@ -91,7 +91,7 @@ export default function CreateAccount() {
 
             {/* Password Field */}
             <div>
-              <label className="block text-sm font-medium text-subtitle mb-3">
+              <label className="block text-sm font-medium text-brand-sub-titles font-semibold mb-3">
                 Password
               </label>
               <div className="relative">
@@ -117,7 +117,7 @@ export default function CreateAccount() {
             {/* Sign Up Button */}
             <button
               type="submit"
-              className="green-button w-full mt-8 py-4 text-lg font-semibold"
+              className="bg-brand-buttons text-white border-none px-6 py-4 rounded-brand text-base font-semibold cursor-pointer transition-all w-full text-center no-underline inline-block hover:opacity-90 mt-8 text-lg"
             >
               Sign Up
             </button>
@@ -125,9 +125,9 @@ export default function CreateAccount() {
 
           {/* Sign In Link */}
           <div className="text-center mt-8">
-            <p className="text-sub-style">
+            <p className="text-brand-sub-text font-normal">
               Already have an account?{' '}
-              <Link href="/login" className="text-hyperlink font-semibold">
+              <Link href="/login" className="text-brand-hyperlink underline cursor-pointer hover:opacity-80 font-semibold">
                 Sign In
               </Link>
             </p>

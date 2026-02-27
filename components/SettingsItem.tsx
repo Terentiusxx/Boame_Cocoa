@@ -1,5 +1,7 @@
 'use client';
 
+import { useRouter } from 'next/navigation';
+
 interface SettingsItemProps {
   id: string;
   title: string;
@@ -15,28 +17,30 @@ export default function SettingsItem({
   hasArrow = true, 
   onClick 
 }: SettingsItemProps) {
+  const router = useRouter();
+  
   const handleClick = () => {
     if (onClick) {
       onClick();
     } else {
       // Default navigation behavior
-      window.location.href = `/settings/${id}`;
+      router.push(`/settings/${id}`);
     }
   };
 
   return (
     <div 
-      className="flex items-center justify-between py-4 px-4 bg-white border-b border-gray-100 cursor-pointer hover:bg-gray-50 transition-colors"
+      className="flex items-center justify-between px-6 py-4 bg-white border-b border-gray-100 cursor-pointer transition-colors hover:bg-gray-50 last:border-b-0"
       onClick={handleClick}
     >
       <div className="flex items-center gap-3">
         {icon && (
           <span className="text-lg">{icon}</span>
         )}
-        <span className="text-gray-900 font-medium">{title}</span>
+        <span className="text-brand-input-text font-medium">{title}</span>
       </div>
       {hasArrow && (
-        <span className="text-gray-400 text-lg">❯</span>
+        <span className="text-brand-sub-text text-lg">❯</span>
       )}
     </div>
   );

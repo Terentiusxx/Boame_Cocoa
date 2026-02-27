@@ -6,7 +6,7 @@ import { useRouter } from 'next/navigation';
 
 function StatusBar() {
   return (
-    <div className="status-bar text-white">
+    <div className="flex justify-between items-center px-5 py-2 text-sm font-semibold bg-background sticky top-0 z-10 text-white">
       {/* <span>9:41</span> */}
       <div className="flex items-center gap-1">
         <div className="flex gap-1">
@@ -108,7 +108,7 @@ export default function Scan() {
 
   if (hasPermission === null) {
     return (
-      <div className="mobile-container bg-black">
+      <div className="max-w-mobile mx-auto min-h-screen bg-background relative shadow-mobile bg-black">
         <StatusBar />
         <div className="flex items-center justify-center h-full text-white">
           <div className="text-center">
@@ -122,7 +122,7 @@ export default function Scan() {
 
   if (hasPermission === false) {
     return (
-      <div className="mobile-container bg-black">
+      <div className="max-w-mobile mx-auto min-h-screen bg-background relative shadow-mobile bg-black">
         <StatusBar />
         <div className="flex flex-col items-center justify-center h-full text-white p-6">
           <div className="text-center mb-8">
@@ -135,7 +135,7 @@ export default function Scan() {
           <div className="space-y-4 w-full max-w-sm">
             <button 
               onClick={getCameraPermission}
-              className="green-button w-full"
+              className="bg-brand-buttons text-white border-none px-6 py-4 rounded-brand text-base font-semibold cursor-pointer transition-all w-full text-center no-underline inline-block hover:opacity-90"
             >
               Enable Camera
             </button>
@@ -149,7 +149,7 @@ export default function Scan() {
   }
 
   return (
-    <div className="mobile-container bg-black overflow-hidden">
+    <div className="max-w-mobile mx-auto min-h-screen bg-background relative shadow-mobile bg-black overflow-hidden">
       <StatusBar />
       
       {/* Camera View */}
@@ -170,7 +170,7 @@ export default function Scan() {
         {/* Back button */}
         <button 
           onClick={handleBack}
-          className="absolute top-4 left-4 z-10 back-button bg-black bg-opacity-50 text-white"
+          className="absolute top-4 left-4 z-10 bg-transparent border-none text-lg cursor-pointer p-2 rounded-full flex items-center justify-center w-9 h-9 hover:bg-black/5 bg-black bg-opacity-50 text-white"
         >
           <span className="text-xl">‹</span>
         </button>
