@@ -1,26 +1,83 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
-
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  /* Colors */
+  --color-background: #F4FAF4;
+  --color-background-dark: #0a0a0a;
+  --color-foreground: #171717;
+  --color-foreground-dark: #ededed;
+  
+  --color-primary-green: #2d7d32;
+  --color-primary-green-secondary: #388e3c;
+  --color-primary-green-light: #4caf50;
+  
+  --color-brand-text-titles: #003300;
+  --color-brand-sub-text: #707b81;
+  --color-brand-input-text: #000000;
+  --color-brand-buttons: #1f4e20;
+  --color-brand-hyperlink: #0b539b;
+  --color-brand-sub-titles: #1f4e20;
+  
+  --color-urgency-high: #ec221f;
+  --color-urgency-medium: #bf6a02;
+  --color-urgency-low: #4caf50;
+  
+  --color-gray-50: #f9fafb;
+  --color-gray-100: #f3f4f6;
+  --color-gray-600: #4b5563;
+  --color-gray-800: #1f2937;
+  --color-gray-bg: #f5f5f5;
+  --color-gray-bg-dark: #1a1a1a;
+  --color-card-bg: #ffffff;
+  --color-card-bg-dark: #2a2a2a;
+  
+  --color-green-50: #f0fdf4;
+  
+  /* Border Radius */
+  --radius-brand: 16px;
+  --radius-brand-sm: 12px;
+  
+  /* Max Width */
+  --width-mobile: 375px;
+  
+  /* Box Shadows */
+  --shadow-mobile: 0 0 20px rgb(0 0 0 / 0.1);
+  --shadow-card: 0 1px 3px rgb(0 0 0 / 0.1);
+  --shadow-card-hover: 0 4px 12px rgb(0 0 0 / 0.15);
+  --shadow-scan-button: 0 4px 12px rgb(0 0 0 / 0.15);
+  --shadow-nav-shadow: 0 -2px 10px rgb(0 0 0 / 0.1);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+@utility max-w-mobile {
+  max-width: theme(--width-mobile);
 }
 
+/* Base styles - minimal global styles */
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  margin: 0;
+  padding: 0;
+  background-color: theme(--color-background);
+  color: theme(--color-brand-input-text);
+  font-family: system-ui, -apple-system, sans-serif;
+}
+
+input[type="text"],
+input[type="email"], 
+input[type="password"],
+input[type="tel"],
+textarea {
+  color: theme(--color-brand-input-text);
+  background-color: theme(--color-background);
+  border-width: 1px;
+  border-color: theme(--color-brand-sub-text);
+}
+
+input[type="text"]:focus,
+input[type="email"]:focus,
+input[type="password"]:focus,
+input[type="tel"]:focus,
+textarea:focus {
+  border-color: theme(--color-brand-buttons);
+  outline: none;
+  box-shadow: 0 0 0 2px rgba(31, 78, 32, 0.2);
 }
