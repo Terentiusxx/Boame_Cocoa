@@ -1,8 +1,3 @@
-/**
- * Shared TypeScript Types and Interfaces
- * Generated from database schema
- */
-
 // ─── Users ────────────────────────────────────────────────────────────────────
 
 export interface User {
@@ -87,22 +82,20 @@ export interface Scan {
 
 // ─── History ──────────────────────────────────────────────────────────────────
 
-export interface History {
-  history_id: number;
-  user_id: number;
-  scan_id: number;
-  viewed_at: string;
+
+export type HistoryResponse = {
+  total_scans: number
+  scans: ScanItem[]
 }
 
-// Scan + Disease joined — useful for displaying history/results
-export interface ScanWithDisease extends Scan {
-  disease?: Disease;
+export type ScanItem = {
+  scan_id: number
+  disease_name: string
+  urgency_level: string
+  image_preview_url: string
+  created_at: string
+  status_color: string
 }
-
-export interface HistoryWithScan extends History {
-  scan?: ScanWithDisease;
-}
-
 // ─── Experts ──────────────────────────────────────────────────────────────────
 
 export interface Expert {
