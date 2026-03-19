@@ -8,8 +8,18 @@ function requireApiUrl() {
   return API_URL.trim().replace(/\/+$/, '')
 }
 
+function assertValidPath(path: string) {
+  if (!path.startsWith('/')) {
+    throw new Error(`serverApi path must start with '/': ${path}`)
+  }
+  if (/\/(undefined|null|NaN)(?=\/|\?|$)/.test(path)) {
+    throw new Error(`serverApi path contains invalid segment: ${path}`)
+  }
+}
+
 export async function serverApi<T>(path: string, init?: RequestInit) {
   const baseUrl = requireApiUrl()
+  assertValidPath(path)
 
   const token = (await cookies()).get(COOKIE_NAME)?.value
 
