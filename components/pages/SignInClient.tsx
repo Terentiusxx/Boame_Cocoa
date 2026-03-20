@@ -1,89 +1,138 @@
-'use client';
+'use client'
 
-import Link from 'next/link';
-import { useRouter } from 'next/navigation';
-import React, { useState } from 'react';
+import Link from 'next/link'
+import { useRouter } from 'next/navigation'
+import React, { useState } from 'react'
+
+function StatusBar() {
+  return (
+    <div className="flex justify-between items-center px-5 py-2 text-sm font-semibold bg-background sticky top-0 z-10">
+      <div className="flex items-center gap-1">
+        <div className="flex gap-1">
+          <div className="w-1 h-3 bg-black rounded-sm"></div>
+          <div className="w-1 h-3 bg-black rounded-sm"></div>
+          <div className="w-1 h-3 bg-black rounded-sm"></div>
+          <div className="w-1 h-3 bg-gray-300 rounded-sm"></div>
+        </div>
+      </div>
+    </div>
+  )
+}
 
 export default function SignInClient() {
-  const router = useRouter();
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const router = useRouter()
+  const [email, setEmail] = useState('')
+  const [password, setPassword] = useState('')
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
 
   const handleLogin = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setError(null);
-    setLoading(true);
+    e.preventDefault()
+    setError(null)
+    setLoading(true)
 
     try {
       const res = await fetch('/api/auth/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, password }),
-      });
+      })
 
       if (!res.ok) {
-        const payload = await res.json().catch(() => null);
-        setError(payload?.detail ?? payload?.message ?? 'Login failed');
-        return;
+        const payload = await res.json().catch(() => null)
+        setError(payload?.detail ?? payload?.message ?? 'Login failed')
+        return
       }
 
-      router.replace('/home');
+      router.replace('/home')
     } finally {
-      setLoading(false);
+      setLoading(false)
     }
-  };
+  }
 
   return (
-    <main className="min-h-screen bg-[#f3f6fa] flex items-center justify-center p-4">
-      <div className="bg-white rounded-2xl shadow-lg p-8 max-w-sm w-full">
-        <h1 className="text-2xl font-bold text-gray-900 mb-2">Welcome Back</h1>
-        <p className="text-gray-600 mb-6">Sign in to continue</p>
+    <div className="max-w-mobile mx-auto min-h-screen bg-background relative shadow-mobile">
+      <StatusBar />
 
-        <form onSubmit={handleLogin} className="space-y-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
-            <input
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              required
-              className="w-full px-4 py-2 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500"
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Password</label>
-            <input
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              required
-              className="w-full px-4 py-2 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500"
-            />
-          </div>
-
-          {error && <p className="text-sm text-red-600">{error}</p>}
-
-          <button
-            type="submit"
-            disabled={loading}
-            className="w-full bg-blue-600 text-white py-2 rounded-xl font-semibold hover:bg-blue-700 disabled:opacity-60"
+      <div className="px-6 pb-6 flex flex-col h-full">
+        <div className="flex items-center justify-between py-4 mb-8">
+          <Link
+            href="/splash"
+            className="bg-transparent border-none text-lg cursor-pointer p-2 rounded-full flex items-center justify-center w-9 h-9 hover:bg-black/5"
           >
-            {loading ? 'Signing in…' : 'Sign In'}
-          </button>
-        </form>
+            <span className="text-xl">‹</span>
+          </Link>
+          <div className="flex-1"></div>
+        </div>
 
-        <div className="flex justify-between mt-4 text-sm">
-          <Link href="/forgot-password" className="text-blue-600 hover:underline">
-            Forgot password?
-          </Link>
-          <Link href="/signup" className="text-blue-600 hover:underline">
-            Create account
-          </Link>
+        <div className="flex-1 flex flex-col justify-center">
+          <div className="text-center mb-12">
+            <h1 className="text-3xl font-bold text-brand-text-titles mb-2">Login</h1>
+            <p className="text-brand-sub-text text-lg">Welcome Back!</p>
+          </div>
+
+          <form onSubmit={handleLogin} className="space-y-6">
+            <div>
+              <label className="block text-sm font-medium text-brand-sub-titles mb-3">
+                Email Address
+              </label>
+              <input
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                required
+                className="w-full px-4 py-4 bg-gray-100 border-none rounded-xl text-gray-900 focus:ring-2 focus:ring-green-500 focus:bg-white transition-all duration-200"
+                placeholder="Enter your email"
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-brand-sub-titles mb-3">
+                Password
+              </label>
+              <input
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                required
+                className="w-full px-4 py-4 bg-gray-100 border-none rounded-xl text-gray-900 focus:ring-2 focus:ring-green-500 focus:bg-white transition-all duration-200"
+                placeholder="Enter your password"
+              />
+            </div>
+
+            {error && <p className="text-sm text-red-600">{error}</p>}
+
+            <div className="text-left">
+              <Link
+                href="/forgot-password"
+                className="text-brand-hyperlink underline cursor-pointer hover:opacity-80 text-sm"
+              >
+                Forgot Password?
+              </Link>
+            </div>
+
+            <button
+              type="submit"
+              disabled={loading}
+              className="bg-brand-buttons text-white border-none px-6 py-4 rounded-brand font-semibold cursor-pointer transition-all w-full text-center no-underline inline-block hover:opacity-90 mt-8 text-lg disabled:opacity-60"
+            >
+              {loading ? 'Signing in…' : 'Sign In'}
+            </button>
+          </form>
+
+          <div className="text-center mt-8">
+            <p className="text-brand-sub-text font-normal">
+              Don&apos;t have an account?{' '}
+              <Link
+                href="/signup"
+                className="text-brand-hyperlink underline cursor-pointer hover:opacity-80 font-semibold"
+              >
+                Sign Up
+              </Link>
+            </p>
+          </div>
         </div>
       </div>
-    </main>
-  );
+    </div>
+  )
 }

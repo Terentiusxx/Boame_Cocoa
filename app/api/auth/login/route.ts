@@ -3,10 +3,49 @@ import { cookies } from 'next/headers'
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL
 const COOKIE_NAME = 'auth_token'
+const USER_ID_COOKIE = 'user_id'
 
 function requireApiUrl() {
   if (!API_URL) throw new Error('Missing API url')
   return API_URL.trim().replace(/\/+$/, '')
+}
+
+function decodeJwtPayload(token: string): unknown {
+  const parts = token.split('.')
+  if (parts.length < 2) return null
+
+  const base64Url = parts[1] ?? ''
+  const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/')
+  const padded = base64.padEnd(Math.ceil(base64.length / 4) * 4, '=')
+
+  try {
+    const json = Buffer.from(padded, 'base64').toString('utf8')
+    return JSON.parse(json)
+  } catch {
+    return null
+  }
+}
+
+function extractUserId(data: any, token: string): number | null {
+  const candidate =
+    data?.user_id ??
+    data?.id ??
+    data?.user?.user_id ??
+    data?.user?.id ??
+    data?.data?.user_id ??
+    data?.data?.id
+
+  if (candidate !== undefined && candidate !== null) {
+    const n = typeof candidate === 'number' ? candidate : Number(String(candidate))
+    if (Number.isFinite(n)) return n
+  }
+
+  const payload = decodeJwtPayload(token) as any
+  const fromToken = payload?.user_id ?? payload?.id ?? payload?.uid ?? payload?.sub
+  if (fromToken === undefined || fromToken === null) return null
+
+  const n = typeof fromToken === 'number' ? fromToken : Number(String(fromToken))
+  return Number.isFinite(n) ? n : null
 }
 
 export async function POST(req: Request) {
@@ -45,13 +84,26 @@ export async function POST(req: Request) {
       )
     }
 
-    (await cookies()).set(COOKIE_NAME, token, {
+    const cookieStore = await cookies()
+
+    cookieStore.set(COOKIE_NAME, token, {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
       sameSite: 'lax',
       path: '/',
       maxAge: 60 * 60 * 24 * 7,
     })
+
+    const userId = extractUserId(data, token)
+    if (userId) {
+      cookieStore.set(USER_ID_COOKIE, String(userId), {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'lax',
+        path: '/',
+        maxAge: 60 * 60 * 24 * 7,
+      })
+    }
 
     return NextResponse.json({ ok: true })
   } catch {

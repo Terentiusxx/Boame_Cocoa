@@ -22,6 +22,7 @@ function StatusBar() {
 export default function CreateAccountClient() {
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
+  const [telephone, setTelephone] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const router = useRouter();
@@ -29,7 +30,7 @@ export default function CreateAccountClient() {
   const handleSignUp = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (!name || !email || !password) return;
+    if (!name || !email || !telephone || !password) return;
 
     const parts = name.trim().split(/\s+/).filter(Boolean);
     const first_name = parts[0] ?? '';
@@ -38,7 +39,7 @@ export default function CreateAccountClient() {
     const response = await fetch('/api/users', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ first_name, last_name, email, password }),
+      body: JSON.stringify({ first_name, last_name, email, telephone: telephone.trim(), password }),
     });
 
     if (!response.ok) {
@@ -106,6 +107,20 @@ export default function CreateAccountClient() {
                 onChange={(e) => setEmail(e.target.value)}
                 className="w-full px-4 py-4 bg-gray-100 border-none rounded-xl text-gray-900 focus:ring-2 focus:ring-green-500 focus:bg-white transition-all duration-200"
                 placeholder="Enter your email"
+                required
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-brand-sub-titles font-semibold mb-3">
+                Telephone Number
+              </label>
+              <input
+                type="tel"
+                value={telephone}
+                onChange={(e) => setTelephone(e.target.value)}
+                className="w-full px-4 py-4 bg-gray-100 border-none rounded-xl text-gray-900 focus:ring-2 focus:ring-green-500 focus:bg-white transition-all duration-200"
+                placeholder="Enter your telephone number"
                 required
               />
             </div>

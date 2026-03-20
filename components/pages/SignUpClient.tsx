@@ -1,114 +1,180 @@
-'use client';
+'use client'
 
-import Link from 'next/link';
-import React, { useState } from 'react';
-import { useRouter } from 'next/navigation';
+import Link from 'next/link'
+import React, { useState } from 'react'
+import { useRouter } from 'next/navigation'
+
+function StatusBar() {
+  return (
+    <div className="flex justify-between items-center px-5 py-2 text-sm font-semibold bg-background sticky top-0 z-10">
+      <div className="flex items-center gap-1">
+        <div className="flex gap-1">
+          <div className="w-1 h-3 bg-black rounded-sm"></div>
+          <div className="w-1 h-3 bg-black rounded-sm"></div>
+          <div className="w-1 h-3 bg-black rounded-sm"></div>
+          <div className="w-1 h-3 bg-gray-300 rounded-sm"></div>
+        </div>
+      </div>
+    </div>
+  )
+}
 
 export default function SignUpClient() {
-  const router = useRouter();
-  const [name, setName] = useState('');
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const router = useRouter()
+  const [name, setName] = useState('')
+  const [email, setEmail] = useState('')
+  const [telephone, setTelephone] = useState('')
+  const [password, setPassword] = useState('')
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
 
   const handleSignUp = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setError(null);
-    setLoading(true);
+    e.preventDefault()
+    setError(null)
+    setLoading(true)
 
     try {
-      const parts = name.trim().split(/\s+/).filter(Boolean);
-      const first_name = parts[0] ?? '';
-      const last_name = parts.slice(1).join(' ') || 'User';
+      const parts = name.trim().split(/\s+/).filter(Boolean)
+      const first_name = parts[0] ?? ''
+      const last_name = parts.slice(1).join(' ') || 'User'
 
       const res = await fetch('/api/users', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ first_name, last_name, email, password }),
-      });
+        body: JSON.stringify({
+          first_name,
+          last_name,
+          email,
+          telephone: telephone.trim(),
+          password,
+        }),
+      })
 
       if (!res.ok) {
-        const payload = await res.json().catch(() => null);
-        setError(payload?.detail ?? payload?.message ?? 'Signup failed');
-        return;
+        const payload = await res.json().catch(() => null)
+        setError(payload?.detail ?? payload?.message ?? 'Signup failed')
+        return
       }
 
-      // Auto-login
       const loginRes = await fetch('/api/auth/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, password }),
-      });
+      })
 
       if (loginRes.ok) {
-        router.replace('/home');
+        router.replace('/home')
       } else {
-        router.replace('/login');
+        router.replace('/login')
       }
     } finally {
-      setLoading(false);
+      setLoading(false)
     }
-  };
+  }
 
   return (
-    <main className="min-h-screen bg-[#f3f6fa] flex items-center justify-center p-4">
-      <div className="bg-white rounded-2xl shadow-lg p-8 max-w-sm w-full">
-        <h1 className="text-2xl font-bold text-gray-900 mb-2">Create Account</h1>
-        <p className="text-gray-600 mb-6">Sign up to get started</p>
+    <div className="max-w-mobile mx-auto min-h-screen bg-background relative shadow-mobile">
+      <StatusBar />
 
-        <form onSubmit={handleSignUp} className="space-y-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Full Name</label>
-            <input
-              type="text"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              required
-              className="w-full px-4 py-2 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500"
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
-            <input
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              required
-              className="w-full px-4 py-2 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500"
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Password</label>
-            <input
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              required
-              className="w-full px-4 py-2 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500"
-            />
-          </div>
-
-          {error && <p className="text-sm text-red-600">{error}</p>}
-
-          <button
-            type="submit"
-            disabled={loading}
-            className="w-full bg-blue-600 text-white py-2 rounded-xl font-semibold hover:bg-blue-700 disabled:opacity-60"
+      <div className="px-6 pb-6 flex flex-col h-full">
+        <div className="flex items-center justify-between py-4 mb-8">
+          <Link
+            href="/splash"
+            className="bg-transparent border-none text-lg cursor-pointer p-2 rounded-full flex items-center justify-center w-9 h-9 hover:bg-black/5"
           >
-            {loading ? 'Creating…' : 'Sign Up'}
-          </button>
-        </form>
-
-        <p className="mt-4 text-sm text-gray-600 text-center">
-          Already have an account?{' '}
-          <Link href="/login" className="text-blue-600 hover:underline">
-            Sign in
+            <span className="text-xl">‹</span>
           </Link>
-        </p>
+          <div className="flex-1"></div>
+        </div>
+
+        <div className="flex-1 flex flex-col justify-center">
+          <div className="text-center mb-12">
+            <h1 className="text-3xl font-bold text-brand-text-titles mb-2">Create Account</h1>
+            <p className="text-brand-sub-text font-normal text-lg">Fill in the details to sign up</p>
+          </div>
+
+          <form onSubmit={handleSignUp} className="space-y-6">
+            <div>
+              <label className="block text-sm font-medium text-brand-sub-titles mb-3">
+                Your Name
+              </label>
+              <input
+                type="text"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                className="w-full px-4 py-4 bg-gray-100 border-none rounded-xl text-gray-900 focus:ring-2 focus:ring-green-500 focus:bg-white transition-all duration-200"
+                placeholder="Enter your full name"
+                required
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-brand-sub-titles mb-3">
+                Email Address
+              </label>
+              <input
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                className="w-full px-4 py-4 bg-gray-100 border-none rounded-xl text-gray-900 focus:ring-2 focus:ring-green-500 focus:bg-white transition-all duration-200"
+                placeholder="Enter your email"
+                required
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-brand-sub-titles mb-3">
+                Telephone Number
+              </label>
+              <input
+                type="tel"
+                value={telephone}
+                onChange={(e) => setTelephone(e.target.value)}
+                className="w-full px-4 py-4 bg-gray-100 border-none rounded-xl text-gray-900 focus:ring-2 focus:ring-green-500 focus:bg-white transition-all duration-200"
+                placeholder="Enter your telephone number"
+                required
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-brand-sub-titles mb-3">
+                Password
+              </label>
+              <input
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                className="w-full px-4 py-4 bg-gray-100 border-none rounded-xl text-gray-900 focus:ring-2 focus:ring-green-500 focus:bg-white transition-all duration-200"
+                placeholder="Create a password"
+                required
+                minLength={6}
+              />
+            </div>
+
+            {error && <p className="text-sm text-red-600">{error}</p>}
+
+            <button
+              type="submit"
+              disabled={loading}
+              className="bg-brand-buttons text-white border-none px-6 py-4 rounded-brand text-base font-semibold cursor-pointer transition-all w-full text-center no-underline inline-block hover:opacity-90 mt-8 text-lg disabled:opacity-60"
+            >
+              {loading ? 'Creating…' : 'Sign Up'}
+            </button>
+          </form>
+
+          <div className="text-center mt-8">
+            <p className="text-brand-sub-text font-normal">
+              Already have an account?{' '}
+              <Link
+                href="/login"
+                className="text-brand-hyperlink underline cursor-pointer hover:opacity-80 font-semibold"
+              >
+                Sign In
+              </Link>
+            </p>
+          </div>
+        </div>
       </div>
-    </main>
-  );
+    </div>
+  )
 }
