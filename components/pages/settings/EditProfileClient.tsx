@@ -20,20 +20,49 @@ function StatusBar() {
 
 type MeResponse = {
   data?: {
-    first_name?: string;
-    mid_name?: string;
-    last_name?: string;
-    email?: string;
-    telephone?: string;
-    role?: string;
-  };
-  first_name?: string;
-  mid_name?: string;
-  last_name?: string;
-  email?: string;
-  telephone?: string;
-  role?: string;
-};
+    first_name?: string
+    mid_name?: string
+    last_name?: string
+    email?: string
+    telephone?: string
+    role?: string
+  }
+  first_name?: string
+  mid_name?: string
+  last_name?: string
+  email?: string
+  telephone?: string
+  role?: string
+}
+
+function toMessage(value: unknown): string {
+  if (typeof value === 'string') return value
+  if (value == null) return ''
+
+  if (Array.isArray(value)) {
+    return value.map((v) => toMessage(v)).filter(Boolean).join(', ')
+  }
+
+  if (value instanceof Error) return value.message
+
+  if (typeof value === 'object') {
+    const anyValue = value as Record<string, unknown>
+    if (typeof anyValue.message === 'string') return anyValue.message
+    if (typeof anyValue.detail === 'string') return anyValue.detail
+    try {
+      return JSON.stringify(value)
+    } catch {
+      return String(value)
+    }
+  }
+
+  return String(value)
+}
+
+function normalizeRole(role: string): string {
+  if (role.trim().toLowerCase() === 'customer') return 'Customer'
+  return role
+}
 
 export default function EditProfileClient() {
   const [profile, setProfile] = useState({
@@ -72,32 +101,32 @@ export default function EditProfileClient() {
   }, [profile.name])
 
   useEffect(() => {
-    let mounted = true;
+    let mounted = true
 
     const load = async () => {
-      const res = await fetch('/api/users/me', { method: 'GET' });
-      if (!res.ok) return;
+      const res = await fetch('/api/users/me', { method: 'GET' })
+      if (!res.ok) return
 
-      const payload = (await res.json().catch(() => null)) as MeResponse | null;
-      const u = payload?.data ?? payload;
-      if (!u || !mounted) return;
+      const payload = (await res.json().catch(() => null)) as MeResponse | null
+      const u = payload?.data ?? payload
+      if (!u || !mounted) return
 
       setProfile((p) => ({
         ...p,
         name: [u.first_name, u.mid_name, u.last_name].filter(Boolean).join(' '),
         email: u.email ?? '',
         phone: u.telephone ?? '',
-      }));
+      }))
 
-      setRole(u.role ?? null)
-    };
+      setRole(u.role ? normalizeRole(u.role) : null)
+    }
 
-    load();
+    void load()
 
     return () => {
-      mounted = false;
-    };
-  }, []);
+      mounted = false
+    }
+  }, [])
 
   const handleSave = async () => {
     setError(null)
@@ -114,13 +143,14 @@ export default function EditProfileClient() {
           last_name: resolved.last_name,
           email: profile.email,
           telephone: profile.phone,
-          ...(role ? { role } : {}),
+          ...(role ? { role: normalizeRole(role) } : {}),
         }),
       })
 
       if (!res.ok) {
         const payload = await res.json().catch(() => null)
-        setError(payload?.detail ?? payload?.message ?? 'Failed to update profile')
+        const msg = toMessage((payload as any)?.detail ?? (payload as any)?.message ?? payload)
+        setError(msg || 'Failed to update profile')
         return
       }
 
