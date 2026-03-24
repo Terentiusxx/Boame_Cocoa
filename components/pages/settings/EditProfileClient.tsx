@@ -134,7 +134,7 @@ export default function EditProfileClient() {
     <div className="max-w-mobile mx-auto min-h-screen bg-background relative shadow-mobile">
       <StatusBar />
 
-      <div className="pb-6">
+      <div className="pb-[calc(96px+env(safe-area-inset-bottom))]">
         <div className="flex items-center justify-between py-4 mb-6 px-6">
           <Link
             href="/settings"
@@ -147,15 +147,6 @@ export default function EditProfileClient() {
         </div>
 
         <div className="px-6">
-          <div className="text-center mb-8">
-            <div className="w-24 h-24 bg-gray-100 rounded-full mx-auto mb-4 flex items-center justify-center">
-              <span className="text-3xl">👤</span>
-            </div>
-            <button className="text-brand-hyperlink underline cursor-pointer hover:opacity-80 font-semibold">
-              Change Photo
-            </button>
-          </div>
-
           <div className="space-y-4">
             <div>
               <label className="block text-sm font-medium text-brand-sub-titles mb-3">Full Name</label>

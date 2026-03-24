@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import { cookies } from 'next/headers'
-
+11111
 const COOKIE_NAME = 'auth_token'
 const USER_ID_COOKIE = 'user_id'
 
