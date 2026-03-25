@@ -45,8 +45,13 @@ function DiseaseNotFound() {
   );
 }
 
-export default async function ResultsRoute({ params }: { params: { id: string } }) {
-  const id = params.id;
+export default async function ResultsRoute({
+  params,
+}: {
+  params: Promise<{ id: string }> | { id: string };
+}) {
+  const resolvedParams = await Promise.resolve(params);
+  const id = resolvedParams.id;
 
   if (id === 'unknown') {
     return <ResultsPage mode="unknown" />;

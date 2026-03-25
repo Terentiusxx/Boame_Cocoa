@@ -4,6 +4,30 @@ import Link from 'next/link'
 import React, { useState } from 'react'
 import { useRouter } from 'next/navigation'
 
+function toMessage(value: unknown): string {
+  if (typeof value === 'string') return value
+  if (value == null) return ''
+
+  if (Array.isArray(value)) {
+    return value.map((v) => toMessage(v)).filter(Boolean).join(', ')
+  }
+
+  if (value instanceof Error) return value.message
+
+  if (typeof value === 'object') {
+    const anyValue = value as Record<string, unknown>
+    if (typeof anyValue.message === 'string') return anyValue.message
+    if (typeof anyValue.detail === 'string') return anyValue.detail
+    try {
+      return JSON.stringify(value)
+    } catch {
+      return String(value)
+    }
+  }
+
+  return String(value)
+}
+
 function StatusBar() {
   return (
     <div className="flex justify-between items-center px-5 py-2 text-sm font-semibold bg-background sticky top-0 z-10">
@@ -52,7 +76,8 @@ export default function SignUpClient() {
 
       if (!res.ok) {
         const payload = await res.json().catch(() => null)
-        setError(payload?.detail ?? payload?.message ?? 'Signup failed')
+        const msg = toMessage((payload as any)?.detail ?? (payload as any)?.message ?? payload)
+        setError(msg || 'Signup failed')
         return
       }
 

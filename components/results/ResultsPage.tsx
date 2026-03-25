@@ -93,7 +93,7 @@ export default function ResultsPage(props: {
               </Link>
 
               <Link
-                href="/contact"
+                href={props.scanId ? `/contact?scan_id=${encodeURIComponent(String(props.scanId))}` : '/contact'}
                 className="bg-brand-buttons text-white border-none px-6 py-4 rounded-brand text-base font-semibold cursor-pointer transition-all w-full text-center no-underline inline-block hover:opacity-90 block bg-green-700"
               >
                 Contact Expert

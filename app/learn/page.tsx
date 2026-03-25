@@ -1,72 +1,33 @@
 import Link from "next/link";
 import LearnCard from "@/components/LearnCard";
+import { serverApi } from "@/lib/serverAPI";
 
-interface DiseaseData {
-  id: string;
+type WithData<T> = { data: T };
+
+type DiseaseListItem = {
+  disease_id: number;
   name: string;
-  description: string;
-  image: string;
-  color: string;
+  urgency_level?: string;
+  image_url?: string;
+};
+
+function unwrapArray<T>(value: unknown): T[] {
+  if (Array.isArray(value)) return value as T[];
+  if (value && typeof value === 'object' && 'data' in (value as any)) {
+    const data = (value as WithData<unknown>).data;
+    if (Array.isArray(data)) return data as T[];
+  }
+  return [];
 }
 
-const diseases: DiseaseData[] = [
-  {
-    id: 'black-pod',
-    name: 'Black Pod Disease',
-    description: 'What should you know whilst learning about this disease',
-    image: '/img/blackpod.png',
-    color: 'red'
-  },
-  {
-    id: 'ccvd',
-    name: 'CCVD Disease',
-    description: 'What should you know whilst learning about this disease',
-    image: '/img/ccsvd.png',
-    color: 'red'
-  },
-  {
-    id: 'witches-broom',
-    name: "Witches' Broom",
-    description: 'What should you know whilst learning about this disease',
-    image: '/img/blackpod.png', // Using existing image as placeholder
-    color: 'orange'
-  },
-  {
-    id: 'frosty-pod',
-    name: 'Frosty Pod Rot',
-    description: 'What should you know whilst learning about this disease',
-    image: '/img/ccsvd.png', // Using existing image as placeholder
-    color: 'orange'
-  },
-  {
-    id: 'vsd',
-    name: 'VSD Disease',
-    description: 'Small black pud grows from round looking swelling',
-    image: '/img/vascularstreak.png', // Using existing similar image
-    color: 'orange'
-  },
-  {
-    id: 'swollen-shoot',
-    name: 'Cocoa Swollen Shoot',
-    description: 'What should you know whilst learning about this disease',
-    image: '/img/blackpod.png', // Using existing image as placeholder
-    color: 'orange'
-  },
-  {
-    id: 'wittering',
-    name: 'Wittering Disease',
-    description: 'What should you know whilst learning about this disease',
-    image: '/img/unknown.png', // Using existing image as placeholder
-    color: 'green'
-  },
-  {
-    id: 'genetic-environmental',
-    name: 'Genetic & Environmental',
-    description: 'What should you know whilst learning about this disease',
-    image: '/img/unknown.png', // Using existing image as placeholder
-    color: 'green'
+async function getDiseases(): Promise<DiseaseListItem[]> {
+  try {
+    const payload = await serverApi<unknown>(`/diseases/?limit=50`);
+    return unwrapArray<DiseaseListItem>(payload);
+  } catch {
+    return [];
   }
-];
+}
 
 function StatusBar() {
   return (
@@ -86,7 +47,9 @@ function StatusBar() {
   );
 }
 
-export default function Learn() {
+export default async function Learn() {
+  const diseases = await getDiseases();
+
   return (
     <div className="max-w-mobile mx-auto min-h-screen bg-background relative shadow-mobile">
       <StatusBar />
@@ -109,14 +72,14 @@ export default function Learn() {
         
         {/* Diseases Grid */}
         <div className="grid grid-cols-2 gap-4">
-          {diseases.map((disease, index) => (
-            <LearnCard 
-              key={index} 
-              id={disease.id}
+          {diseases.map((disease) => (
+            <LearnCard
+              key={disease.disease_id}
+              diseaseId={disease.disease_id}
               name={disease.name}
-              description={disease.description}
-              image={disease.image}
-              color={disease.color}
+              description={'What should you know whilst learning about this disease'}
+              imageUrl={disease.image_url}
+              urgencyLevel={disease.urgency_level}
             />
           ))}
         </div>

@@ -1,6 +1,7 @@
 'use client'
 
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 import { useEffect, useMemo, useState } from 'react'
 
 function StatusBar() {
@@ -65,6 +66,8 @@ function normalizeRole(role: string): string {
 }
 
 export default function EditProfileClient() {
+  const router = useRouter()
+
   const [profile, setProfile] = useState({
     name: '',
     email: '',
@@ -75,6 +78,7 @@ export default function EditProfileClient() {
   const [role, setRole] = useState<string | null>(null)
 
   const [saving, setSaving] = useState(false)
+  const [deleting, setDeleting] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState<string | null>(null)
 
@@ -160,6 +164,30 @@ export default function EditProfileClient() {
     }
   }
 
+  const handleDelete = async () => {
+    const ok = window.confirm('Delete your account? This action cannot be undone.')
+    if (!ok) return
+
+    setError(null)
+    setSuccess(null)
+    setDeleting(true)
+
+    try {
+      const res = await fetch('/api/users/me', { method: 'DELETE' })
+      if (!res.ok) {
+        const payload = await res.json().catch(() => null)
+        const msg = toMessage((payload as any)?.detail ?? (payload as any)?.message ?? payload)
+        setError(msg || 'Failed to delete account')
+        return
+      }
+
+      await fetch('/api/auth/logout', { method: 'POST' }).catch(() => null)
+      router.replace('/login')
+    } finally {
+      setDeleting(false)
+    }
+  }
+
   return (
     <div className="max-w-mobile mx-auto min-h-screen bg-background relative shadow-mobile">
       <StatusBar />
@@ -225,10 +253,20 @@ export default function EditProfileClient() {
           <div className="mt-8">
             <button
               onClick={handleSave}
-              disabled={saving}
+              disabled={saving || deleting}
               className="bg-brand-buttons text-white border-none px-6 py-4 rounded-brand font-semibold cursor-pointer transition-all w-full text-center no-underline inline-block hover:opacity-90 text-lg disabled:opacity-60"
             >
               {saving ? 'Saving…' : 'Save Changes'}
+            </button>
+          </div>
+
+          <div className="mt-4">
+            <button
+              onClick={handleDelete}
+              disabled={saving || deleting}
+              className="w-full px-6 py-4 rounded-brand font-semibold text-lg border border-red-600 text-red-600 bg-transparent hover:bg-red-50 disabled:opacity-60"
+            >
+              {deleting ? 'Deleting…' : 'Delete Account'}
             </button>
           </div>
         </div>

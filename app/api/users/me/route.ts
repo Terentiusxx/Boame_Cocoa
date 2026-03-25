@@ -94,3 +94,28 @@ export async function PUT(req: Request) {
     )
   }
 }
+
+export async function DELETE() {
+  try {
+    const userId = await getUserId()
+    const res = await backendFetch(`/users/${userId}`, { method: 'DELETE' })
+
+    if (res.status === 204) {
+      return new NextResponse(null, { status: 204 })
+    }
+
+    const contentType = res.headers.get('content-type') || ''
+    if (contentType.includes('application/json')) {
+      const json = await res.json().catch(() => null)
+      return NextResponse.json(json, { status: res.status })
+    }
+
+    const text = await res.text().catch(() => '')
+    return NextResponse.json(text ? { message: text } : { ok: res.ok }, { status: res.status })
+  } catch (error) {
+    return NextResponse.json(
+      { message: error instanceof Error ? error.message : 'Failed' },
+      { status: 500 }
+    )
+  }
+}

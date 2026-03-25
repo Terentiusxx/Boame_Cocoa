@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { type ChangeEvent, useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 
@@ -23,8 +23,10 @@ export default function ScanClient() {
   const [hasPermission, setHasPermission] = useState<boolean | null>(null);
   const [stream, setStream] = useState<MediaStream | null>(null);
   const [isCapturing, setIsCapturing] = useState(false);
+  const captureInProgressRef = useRef(false);
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const router = useRouter();
 
   useEffect(() => {
@@ -64,8 +66,22 @@ export default function ScanClient() {
     }
   };
 
+  const ensureScanNonce = () => {
+    const existing = sessionStorage.getItem('scan_nonce');
+    if (existing) return existing;
+
+    const nonce =
+      typeof crypto !== 'undefined' && 'randomUUID' in crypto
+        ? crypto.randomUUID()
+        : `${Date.now()}-${Math.random().toString(16).slice(2)}`;
+
+    sessionStorage.setItem('scan_nonce', nonce);
+    return nonce;
+  };
+
   const takePicture = () => {
-    if (isCapturing) return;
+    if (captureInProgressRef.current) return;
+    captureInProgressRef.current = true;
 
     setIsCapturing(true);
 
@@ -82,6 +98,7 @@ export default function ScanClient() {
 
           const imageDataUrl = canvas.toDataURL('image/jpeg', 0.9);
           sessionStorage.setItem('scan_image', imageDataUrl);
+          ensureScanNonce();
         }
       }
 
@@ -91,6 +108,47 @@ export default function ScanClient() {
       router.push('/processing');
     } finally {
       setIsCapturing(false);
+      captureInProgressRef.current = false;
+    }
+  };
+
+  const onUploadSelected = (e: ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    // allow selecting the same file again later
+    e.target.value = '';
+
+    if (!file || captureInProgressRef.current) return;
+    captureInProgressRef.current = true;
+
+    setIsCapturing(true);
+
+    try {
+      if (stream) {
+        stream.getTracks().forEach((track) => track.stop());
+      }
+
+      const reader = new FileReader();
+      reader.onload = () => {
+        const result = typeof reader.result === 'string' ? reader.result : '';
+        if (result) {
+          sessionStorage.setItem('scan_image', result);
+          ensureScanNonce();
+        }
+        router.push('/processing');
+        setIsCapturing(false);
+        captureInProgressRef.current = false;
+      };
+      reader.onerror = () => {
+        router.push('/processing');
+        setIsCapturing(false);
+        captureInProgressRef.current = false;
+      };
+      reader.readAsDataURL(file);
+    } catch (error) {
+      console.error('Error reading uploaded image:', error);
+      router.push('/processing');
+      setIsCapturing(false);
+      captureInProgressRef.current = false;
     }
   };
 
@@ -103,9 +161,9 @@ export default function ScanClient() {
 
   if (hasPermission === null) {
     return (
-      <div className="max-w-mobile mx-auto min-h-screen bg-background relative shadow-mobile bg-black">
+      <div className="max-w-mobile mx-auto min-h-screen bg-background relative shadow-mobile bg-black flex flex-col">
         <StatusBar />
-        <div className="flex items-center justify-center h-full text-white">
+        <div className="flex-1 flex items-center justify-center text-white">
           <div className="text-center">
             <div className="w-16 h-16 border-4 border-white border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
             <p>Requesting camera permission...</p>
@@ -117,9 +175,9 @@ export default function ScanClient() {
 
   if (hasPermission === false) {
     return (
-      <div className="max-w-mobile mx-auto min-h-screen bg-background relative shadow-mobile bg-black">
+      <div className="max-w-mobile mx-auto min-h-screen bg-background relative shadow-mobile bg-black flex flex-col">
         <StatusBar />
-        <div className="flex flex-col items-center justify-center h-full text-white p-6">
+        <div className="flex-1 flex flex-col items-center justify-center text-white p-6">
           <div className="text-center mb-8">
             <div className="text-6xl mb-4">📷</div>
             <h2 className="text-xl font-semibold mb-4">Camera Access Needed</h2>
@@ -134,6 +192,18 @@ export default function ScanClient() {
             >
               Enable Camera
             </button>
+
+            <label className="block text-center text-white underline cursor-pointer">
+              Upload image instead
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/*"
+                className="hidden"
+                onChange={onUploadSelected}
+              />
+            </label>
+
             <Link href="/home" className="block text-center text-white underline">
               Skip for now
             </Link>
@@ -144,16 +214,16 @@ export default function ScanClient() {
   }
 
   return (
-    <div className="max-w-mobile mx-auto min-h-screen bg-background relative shadow-mobile bg-black overflow-hidden">
+    <div className="max-w-mobile mx-auto min-h-screen bg-background relative shadow-mobile bg-black overflow-hidden flex flex-col">
       <StatusBar />
 
-      <div className="relative flex-1 flex flex-col">
+      <div className="relative flex-1 min-h-0">
         <video
           ref={videoRef}
           autoPlay
           playsInline
           muted
-          className="w-full h-full object-cover"
+          className="absolute inset-0 w-full h-full object-cover"
           onLoadedMetadata={() => {
             if (videoRef.current) {
               videoRef.current.play().catch(console.error);
@@ -210,6 +280,25 @@ export default function ScanClient() {
               </div>
             </button>
           </div>
+
+          <div className="mt-4 flex items-center justify-center">
+            <button
+              type="button"
+              onClick={() => fileInputRef.current?.click()}
+              disabled={isCapturing}
+              className="text-white underline text-sm disabled:opacity-60"
+            >
+              Upload image
+            </button>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/*"
+              className="hidden"
+              onChange={onUploadSelected}
+            />
+          </div>
+
           {isCapturing && <p className="text-white text-center mt-4 text-sm">Processing...</p>}
         </div>
       </div>

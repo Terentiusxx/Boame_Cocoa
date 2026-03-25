@@ -30,12 +30,65 @@ export default function ProcessingClient() {
   useEffect(() => {
     let cancelled = false;
 
+    const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
     const run = async () => {
       const imageDataUrl = sessionStorage.getItem('scan_image');
+      const nonce = sessionStorage.getItem('scan_nonce') || '';
+
+      const inflightKey = nonce ? `scan_inflight_${nonce}` : '';
+      const resultKey = nonce ? `scan_result_${nonce}` : '';
+      const errorKey = nonce ? `scan_error_${nonce}` : '';
+
       if (!imageDataUrl) {
         router.replace('/scan');
         return;
       }
+
+      // If a previous mount already completed, immediately continue.
+      if (resultKey) {
+        const existingScanId = sessionStorage.getItem(resultKey);
+        if (existingScanId) {
+          sessionStorage.removeItem('scan_image');
+          sessionStorage.removeItem('scan_nonce');
+          sessionStorage.removeItem(inflightKey);
+          sessionStorage.removeItem(errorKey);
+          if (!cancelled) router.replace(`/results/${existingScanId}`);
+          return;
+        }
+      }
+
+      // If another mount already started the request, wait for it to finish.
+      if (inflightKey && sessionStorage.getItem(inflightKey) === '1') {
+        for (let i = 0; i < 80; i++) {
+          if (cancelled) return;
+
+          const finishedScanId = resultKey ? sessionStorage.getItem(resultKey) : null;
+          if (finishedScanId) {
+            sessionStorage.removeItem('scan_image');
+            sessionStorage.removeItem('scan_nonce');
+            sessionStorage.removeItem(inflightKey);
+            sessionStorage.removeItem(errorKey);
+            router.replace(`/results/${finishedScanId}`);
+            return;
+          }
+
+          if (errorKey && sessionStorage.getItem(errorKey) === '1') {
+            sessionStorage.removeItem('scan_image');
+            sessionStorage.removeItem('scan_nonce');
+            sessionStorage.removeItem(inflightKey);
+            router.replace('/results/unknown');
+            return;
+          }
+
+          await sleep(150);
+        }
+
+        router.replace('/results/unknown');
+        return;
+      }
+
+      if (inflightKey) sessionStorage.setItem(inflightKey, '1');
 
       try {
         const response = await fetch('/api/scans', {
@@ -43,14 +96,23 @@ export default function ProcessingClient() {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             image_url: imageDataUrl,
-            confidence_score: 0,
           }),
         });
 
         const payload = (await response.json().catch(() => null)) as ScanCreateResponse | null;
         const scanId = payload?.data?.scan_id ?? payload?.scan_id ?? payload?.data?.id ?? payload?.id;
 
+        if (nonce && scanId && resultKey) {
+          sessionStorage.setItem(resultKey, String(scanId));
+        }
+
+        if (nonce && (!response.ok || !scanId) && errorKey) {
+          sessionStorage.setItem(errorKey, '1');
+        }
+
+        if (inflightKey) sessionStorage.removeItem(inflightKey);
         sessionStorage.removeItem('scan_image');
+        sessionStorage.removeItem('scan_nonce');
 
         if (cancelled) return;
 
@@ -61,6 +123,10 @@ export default function ProcessingClient() {
 
         router.replace(`/results/${scanId}`);
       } catch {
+        if (nonce && errorKey) sessionStorage.setItem(errorKey, '1');
+        if (inflightKey) sessionStorage.removeItem(inflightKey);
+        sessionStorage.removeItem('scan_image');
+        sessionStorage.removeItem('scan_nonce');
         if (cancelled) return;
         router.replace('/results/unknown');
       }

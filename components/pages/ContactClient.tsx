@@ -28,11 +28,11 @@ export default function ContactClient() {
   const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
 
-    const formData = new FormData(e.currentTarget);
-    const name = String(formData.get('name') ?? '').trim();
-    const email = String(formData.get('email') ?? '').trim();
-    const phone = String(formData.get('phone') ?? '').trim();
-    const issue = String(formData.get('issue') ?? '').trim();
+    const form = e.currentTarget;
+
+    const formData = new FormData(form);
+    const subject = String(formData.get('subject') ?? '').trim();
+    const description = String(formData.get('description') ?? '').trim();
 
     const scan_id = scanIdParam ? Number(scanIdParam) : undefined;
 
@@ -43,10 +43,8 @@ export default function ContactClient() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           scan_id,
-          contact_name: name,
-          contact_email: email,
-          message: `Phone: ${phone}\n\n${issue}`,
-          priority: 'medium',
+          subject,
+          description,
         }),
       });
 
@@ -56,7 +54,7 @@ export default function ContactClient() {
       }
 
       alert("Your message has been sent! We'll get back to you soon.");
-      e.currentTarget.reset();
+      form?.reset?.();
     } finally {
       setSubmitting(false);
     }
@@ -91,41 +89,20 @@ export default function ContactClient() {
 
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
-              <label className="block text-sm font-medium text-brand-sub-titles font-semibold mb-2">Your Name</label>
+              <label className="block text-sm font-medium text-brand-sub-titles font-semibold mb-2">Subject</label>
               <input
-                name="name"
+                name="subject"
                 type="text"
                 className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
-                placeholder="Enter your name"
+                placeholder="What do you need help with?"
                 required
               />
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-brand-sub-titles font-semibold mb-2">Email Address</label>
-              <input
-                name="email"
-                type="email"
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
-                placeholder="Enter your email"
-                required
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-brand-sub-titles font-semibold mb-2">Phone Number</label>
-              <input
-                name="phone"
-                type="tel"
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
-                placeholder="Enter your phone number"
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-brand-sub-titles font-semibold mb-2">Describe the Issue</label>
+              <label className="block text-sm font-medium text-brand-sub-titles font-semibold mb-2">Description</label>
               <textarea
-                name="issue"
+                name="description"
                 rows={4}
                 className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
                 placeholder="Please describe what you're seeing on your cocoa plants..."

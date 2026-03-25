@@ -19,3 +19,23 @@ export async function GET(req: Request) {
   const json = await res.json().catch(() => null)
   return NextResponse.json(json, { status: res.status })
 }
+
+export async function POST(req: Request) {
+  try {
+    const body = await req.json().catch(() => ({}))
+
+    const res = await backendFetch('/diseases/', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body ?? {}),
+    })
+
+    const json = await res.json().catch(() => null)
+    return NextResponse.json(json, { status: res.status })
+  } catch (error) {
+    return NextResponse.json(
+      { message: error instanceof Error ? error.message : 'Failed' },
+      { status: 500 }
+    )
+  }
+}

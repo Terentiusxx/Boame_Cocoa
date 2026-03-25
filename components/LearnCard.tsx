@@ -1,23 +1,22 @@
 'use client';
 
-import Image from "next/image";
 import { useRouter } from 'next/navigation';
 
 interface LearnCardProps {
-  id: string;
+  diseaseId: string | number;
   name: string;
   description: string;
-  image: string;
-  color: string;
+  imageUrl?: string;
+  urgencyLevel?: string;
   onClick?: () => void;
 }
 
 export default function LearnCard({ 
-  id, 
+  diseaseId, 
   name, 
   description, 
-  image, 
-  color, 
+  imageUrl, 
+  urgencyLevel, 
   onClick 
 }: LearnCardProps) {
   const router = useRouter();
@@ -27,15 +26,17 @@ export default function LearnCard({
       onClick();
     } else {
       // Default navigation behavior to learn more about the disease
-      router.push(`/learn/${id}`);
+      router.push(`/learn/${diseaseId}`);
     }
   };
 
-  const buttonColorMap: Record<string, string> = {
-    'red': 'bg-urgency-high',
-    'orange': 'bg-urgency-medium',
-    'green': 'bg-brand-buttons',
-  };
+  const urgency = (urgencyLevel || '').toLowerCase();
+  const buttonClass =
+    urgency === 'high'
+      ? 'bg-urgency-high'
+      : urgency === 'medium'
+        ? 'bg-urgency-medium'
+        : 'bg-brand-buttons';
 
   return (
     <div 
@@ -44,13 +45,15 @@ export default function LearnCard({
     >
       <div className="flex flex-col items-center text-center">
         <div className="w-16 h-16 mx-auto mb-3 flex items-center justify-center">
-          {image ? (
-            <Image
-              src={image}
+          {imageUrl ? (
+            // Use <img> so backend URLs work without Next image domain config.
+            <img
+              src={imageUrl}
               alt={`${name} icon`}
               width={64}
               height={64}
               className="object-contain"
+              loading="lazy"
             />
           ) : (
             <div className="w-16 h-16 bg-green-100 rounded-lg flex items-center justify-center text-2xl">🍃</div>
@@ -59,7 +62,7 @@ export default function LearnCard({
         <h3 className="font-semibold text-gray-900 text-sm mb-2 leading-tight">{name}</h3>
         <p className="text-xs text-gray-600 leading-relaxed mb-3">{description}</p>
         <button 
-          className={`inline-block px-4 py-2 rounded-full text-xs font-medium text-center text-white no-underline transition-opacity hover:opacity-90 ${buttonColorMap[color] || 'bg-brand-buttons'}`}
+          className={`inline-block px-4 py-2 rounded-full text-xs font-medium text-center text-white no-underline transition-opacity hover:opacity-90 ${buttonClass}`}
         >
           Learn more
         </button>

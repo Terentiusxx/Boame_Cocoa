@@ -1,0 +1,74 @@
+[
+  {
+    "name": "Black Pod Disease",
+    "description": "What should you know whilst learning about this disease",
+    "urgency_level": "high",
+    "symtoms": "What should you know whilst learning about this disease",
+    "image_url": "/img/blackpod.png",
+    "icon_name": "🌿",
+    "color_hex": "#ec221f"
+  },
+  {
+    "name": "CCVD Disease",
+    "description": "What should you know whilst learning about this disease",
+    "urgency_level": "high",
+    "symtoms": "What should you know whilst learning about this disease",
+    "image_url": "/img/ccsvd.png",
+    "icon_name": "🌿",
+    "color_hex": "#ec221f"
+  },
+  {
+    "name": "Witches' Broom",
+    "description": "What should you know whilst learning about this disease",
+    "urgency_level": "medium",
+    "symtoms": "What should you know whilst learning about this disease",
+    "image_url": "/img/blackpod.png",
+    "icon_name": "🌿",
+    "color_hex": "#bf6a02"
+  },
+  {
+    "name": "Frosty Pod Rot",
+    "description": "What should you know whilst learning about this disease",
+    "urgency_level": "medium",
+    "symtoms": "What should you know whilst learning about this disease",
+    "image_url": "/img/ccsvd.png",
+    "icon_name": "🌿",
+    "color_hex": "#bf6a02"
+  },
+  {
+    "name": "VSD Disease",
+    "description": "Small black pud grows from round looking swelling",
+    "urgency_level": "medium",
+    "symtoms": "Small black pud grows from round looking swelling",
+    "image_url": "/img/vascularstreak.png",
+    "icon_name": "🌿",
+    "color_hex": "#bf6a02"
+  },
+  {
+    "name": "Cocoa Swollen Shoot",
+    "description": "What should you know whilst learning about this disease",
+    "urgency_level": "medium",
+    "symtoms": "What should you know whilst learning about this disease",
+    "image_url": "/img/blackpod.png",
+    "icon_name": "🌿",
+    "color_hex": "#bf6a02"
+  },
+  {
+    "name": "Wittering Disease",
+    "description": "What should you know whilst learning about this disease",
+    "urgency_level": "low",
+    "symtoms": "What should you know whilst learning about this disease",
+    "image_url": "/img/unknown.png",
+    "icon_name": "🌿",
+    "color_hex": "#1f4e20"
+  },
+  {
+    "name": "Genetic & Environmental",
+    "description": "What should you know whilst learning about this disease",
+    "urgency_level": "low",
+    "symtoms": "What should you know whilst learning about this disease",
+    "image_url": "/img/unknown.png",
+    "icon_name": "🌿",
+    "color_hex": "#1f4e20"
+  }
+]

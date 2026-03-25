@@ -116,8 +116,8 @@ export default function LoginPage() {
           <div className="text-center mt-8">
             <p className="text-brand-sub-text font-normal">
               Don&apos;t have an account?{' '}
-              <Link href="/signup" className="text-brand-hyperlink underline cursor-pointer hover:opacity-80 font-semibold">
-                Sign Up
+              <Link href="/create-account" className="text-brand-hyperlink underline cursor-pointer hover:opacity-80 font-semibold">
+                Create one
               </Link>
             </p>
           </div>
