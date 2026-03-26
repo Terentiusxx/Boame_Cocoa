@@ -1,5 +1,8 @@
 import { backendFetch } from '@/lib/backendProxy'
 import { NextResponse } from 'next/server'
+import { cookies } from 'next/headers'
+
+const USER_ID_COOKIE = 'user_id'
 
 type WithData<T> = { data: T }
 type MaybeWrapped<T> = T | WithData<T>
@@ -24,6 +27,12 @@ function extractScanId(payload: unknown): number | null {
 }
 
 async function getUserIdFromDashboard() {
+  const cookieValue = (await cookies()).get(USER_ID_COOKIE)?.value
+  if (cookieValue) {
+    const n = Number(String(cookieValue))
+    if (Number.isFinite(n) && n > 0) return n
+  }
+
   const dashRes = await backendFetch('/users/dashboard', { method: 'GET' })
   if (!dashRes.ok) return null
   const data = await dashRes.json().catch(() => null)

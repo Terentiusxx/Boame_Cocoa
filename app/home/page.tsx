@@ -1,6 +1,8 @@
 import HomeUI from '@/components/homeui'
+import AuthGuard from '@/components/AuthGuard'
 import { serverApi } from '@/lib/serverAPI'
 import type { DiseaseData, HistoryResponse } from '@/lib/types'
+import { getDiseaseLocalImage } from '@/lib/utils'
 
 export const dynamic = 'force-dynamic'
 
@@ -49,12 +51,28 @@ async function getRecentScans(limit: number): Promise<DiseaseData[]> {
       name: scan.disease_name,
       urgency: u.urgency as DiseaseData['urgency'],
       urgencyClass: u.urgencyClass,
-      image: scan.image_preview_url,
+      image: getDiseaseLocalImage(scan.disease_name),
     }
   })
 }
 
+async function getFirstName(): Promise<string | null> {
+  try {
+    const me = await serverApi<any>('/users/me')
+    const user = unwrap<any>(me)
+    return typeof user?.first_name === 'string' && user.first_name.trim()
+      ? user.first_name.trim()
+      : null
+  } catch {
+    return null
+  }
+}
+
 export default async function Page() {
-  const recentScans = await getRecentScans(3)
-  return <HomeUI recentScans={recentScans} />
+  const [recentScans, firstName] = await Promise.all([getRecentScans(3), getFirstName()])
+  return (
+    <AuthGuard type="protected">
+      <HomeUI recentScans={recentScans} firstName={firstName} />
+    </AuthGuard>
+  )
 }

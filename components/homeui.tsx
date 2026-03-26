@@ -4,14 +4,19 @@ import CheckCocoaCard from "@/components/CheckCocoaCard";
 import BottomNavigation from "@/components/layout/navbar";
 import { DiseaseData } from "@/lib/types"
 
-
-export default function Home({ recentScans }: { recentScans: DiseaseData[] }) {
+export default function Home({
+  recentScans,
+  firstName,
+}: {
+  recentScans: DiseaseData[]
+  firstName?: string | null
+}) {
   return (
     <div className="max-w-mobile mx-auto min-h-screen bg-background relative shadow-mobile">
       <div className="px-6 pb-24 pt-8">
         {/* Greeting */}
         <h1 className="text-3xl font-bold text-brand-text-titles mb-6">
-          Hey User,
+          Hey{firstName ? ` ${firstName}` : ''},
         </h1>
         
         {/* Check Your Cocoa Card */}

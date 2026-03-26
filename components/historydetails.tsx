@@ -2,6 +2,7 @@
 import Link from "next/link";
 import DiseaseCard from "./DiseaseCard";
 import { ScanItem } from "@/lib/types";
+import { getDiseaseLocalImage } from "@/lib/utils";
 
 
 function StatusBar() {
@@ -53,7 +54,7 @@ export default function Historydetails({ allScans }: { allScans: ScanItem[] }) {
               id={String(scan.scan_id)}
               name={scan.disease_name}
               urgency={scan.urgency_level}
-              image={scan.image_preview_url}
+              image={getDiseaseLocalImage(scan.disease_name)}
               urgencyClass={urgencyToClass(scan.urgency_level)}
             />
           ))}

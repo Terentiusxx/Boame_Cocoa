@@ -1,10 +1,25 @@
 import { backendFetch } from '@/lib/backendProxy'
 import { NextResponse } from 'next/server'
+import { cookies } from 'next/headers'
+
+const USER_ID_COOKIE = 'user_id'
 
 export async function GET(req: Request) {
   try {
     const url = new URL(req.url)
     const limit = url.searchParams.get('limit') || '50'
+
+    const cookieValue = (await cookies()).get(USER_ID_COOKIE)?.value
+    if (cookieValue) {
+      const userId = Number(String(cookieValue))
+      if (Number.isFinite(userId) && userId > 0) {
+        const res = await backendFetch(`/history/${userId}?limit=${encodeURIComponent(limit)}`, {
+          method: 'GET',
+        })
+        const json = await res.json().catch(() => null)
+        return NextResponse.json(json, { status: res.status })
+      }
+    }
 
     const dashRes = await backendFetch('/users/dashboard', { method: 'GET' })
     if (!dashRes.ok) {

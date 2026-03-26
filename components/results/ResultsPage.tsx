@@ -1,3 +1,5 @@
+'use client';
+
 import Link from 'next/link';
 
 type Treatment = { name?: string };
@@ -108,7 +110,7 @@ export default function ResultsPage(props: {
   const diseaseName = props.disease?.name ?? 'Disease not found';
   const urgency = urgencyLabel(props.disease?.urgency_level);
   const icon = props.disease?.icon_name || '🌿';
-  const treatments = props.disease?.treatments?.map((t) => t.name).filter(Boolean) as string[] | undefined;
+  const treatments = props.disease?.treatments?.map((t: Treatment) => t.name).filter(Boolean) as string[] | undefined;
 
   return (
     <div className="max-w-mobile mx-auto min-h-screen bg-background relative shadow-mobile">

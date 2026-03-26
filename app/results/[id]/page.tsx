@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import ResultsPage, { type DiseaseOut, type ScanOut } from '@/components/results/ResultsPage';
+import PredictResultsClient from '@/components/results/PredictResultsClient';
 import { serverApi } from '@/lib/serverAPI';
 
 type WithData<T> = { data: T };
@@ -55,6 +56,10 @@ export default async function ResultsRoute({
 
   if (id === 'unknown') {
     return <ResultsPage mode="unknown" />;
+  }
+
+  if (id === 'predict') {
+    return <PredictResultsClient />;
   }
 
   const scanId = Number(id);

@@ -1,4 +1,5 @@
 import { cookies } from 'next/headers'
+import { isDev, getMockResponse } from './devMode'
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL
 const COOKIE_NAME = 'auth_token'
@@ -18,9 +19,35 @@ function assertValidPath(path: string) {
 }
 
 export async function serverApi<T>(path: string, init?: RequestInit) {
-  const baseUrl = requireApiUrl()
   assertValidPath(path)
 
+  // Dev mode: use hardcoded data instead of backend
+  if (isDev()) {
+    const method = init?.method || 'GET'
+    let body: unknown = undefined
+    if (typeof init?.body === 'string') {
+      try {
+        body = JSON.parse(init.body)
+      } catch {
+        body = undefined
+      }
+    }
+    const mockResponse = getMockResponse(path, method, body)
+    
+    if (mockResponse) {
+      if (!mockResponse.error) {
+        console.log(`[DEV MODE] ${method} ${path}`, mockResponse.data)
+        return mockResponse.data as T
+      } else {
+        throw new Error(mockResponse.error)
+      }
+    }
+    // If no mock found, throw error
+    throw new Error(`[DEV MODE] No mock data for ${method} ${path}`)
+  }
+
+  // Production: use real backend
+  const baseUrl = requireApiUrl()
   const token = (await cookies()).get(COOKIE_NAME)?.value
 
   const res = await fetch(`${baseUrl}${path}`, {

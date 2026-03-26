@@ -53,7 +53,7 @@ export default function TermsAndConditions() {
             
             <div>
               <h3 className="font-semibold text-gray-900 mb-2">4. Accuracy Disclaimer</h3>
-              <p>While we strive for accuracy, the app's disease detection capabilities are not 100% accurate. Users should consult with agricultural experts for definitive diagnosis and treatment recommendations.</p>
+              <p>While we strive for accuracy, the app&apos;s disease detection capabilities are not 100% accurate. Users should consult with agricultural experts for definitive diagnosis and treatment recommendations.</p>
             </div>
             
             <div>

@@ -9,11 +9,11 @@
     "color_hex": "#ec221f"
   },
   {
-    "name": "CCVD Disease",
+    "name": "CSSVD Disease",
     "description": "What should you know whilst learning about this disease",
     "urgency_level": "high",
     "symtoms": "What should you know whilst learning about this disease",
-    "image_url": "/img/ccsvd.png",
+    "image_url": "/img/cssvd.png",
     "icon_name": "🌿",
     "color_hex": "#ec221f"
   },

@@ -1,5 +1,10 @@
 import SignUpClient from '@/components/pages/SignUpClient';
+import AuthGuard from '@/components/AuthGuard';
 
 export default function SignUpPage() {
-  return <SignUpClient />;
+  return (
+    <AuthGuard type="public">
+      <SignUpClient />
+    </AuthGuard>
+  );
 }

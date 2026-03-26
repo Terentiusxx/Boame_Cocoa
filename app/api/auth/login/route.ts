@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { cookies } from 'next/headers'
+import { isDev, getMockResponse } from '@/lib/devMode'
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL
 const COOKIE_NAME = 'auth_token'
@@ -50,9 +51,49 @@ function extractUserId(data: any, token: string): number | null {
 
 export async function POST(req: Request) {
   try {
-    const baseUrl = requireApiUrl()
-
     const { email, password } = await req.json()
+
+    // Dev mode: use hardcoded mock data
+    if (isDev()) {
+      const mockResponse = getMockResponse('/auth/login', 'POST', { email, password })
+      
+      if (!mockResponse) {
+        return NextResponse.json({ message: 'Login not supported in dev mode' }, { status: 400 })
+      }
+      
+      if (mockResponse.error) {
+        return NextResponse.json({ message: mockResponse.error }, { status: mockResponse.status })
+      }
+
+      const data = mockResponse.data
+      const token = data?.token || 'dev-token-12345'
+      const user = data?.user
+
+      const cookieStore = await cookies()
+      cookieStore.set(COOKIE_NAME, token, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'lax',
+        path: '/',
+        maxAge: 60 * 60 * 24 * 7,
+      })
+
+      const userId = user?.user_id || 1
+      if (userId) {
+        cookieStore.set(USER_ID_COOKIE, String(userId), {
+          httpOnly: true,
+          secure: process.env.NODE_ENV === 'production',
+          sameSite: 'lax',
+          path: '/',
+          maxAge: 60 * 60 * 24 * 7,
+        })
+      }
+
+      return NextResponse.json({ ok: true })
+    }
+
+    // Production: use real backend
+    const baseUrl = requireApiUrl()
 
     const res = await fetch(`${baseUrl}/auth/login`, {
       method: 'POST',

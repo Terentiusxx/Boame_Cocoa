@@ -22,6 +22,7 @@ function StatusBar() {
 export default function ScanClient() {
   const [hasPermission, setHasPermission] = useState<boolean | null>(null);
   const [stream, setStream] = useState<MediaStream | null>(null);
+  const streamRef = useRef<MediaStream | null>(null);
   const [isCapturing, setIsCapturing] = useState(false);
   const captureInProgressRef = useRef(false);
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -32,9 +33,9 @@ export default function ScanClient() {
   useEffect(() => {
     getCameraPermission();
     return () => {
-      if (stream) {
-        stream.getTracks().forEach((track) => track.stop());
-      }
+      const activeStream = streamRef.current;
+      if (activeStream) activeStream.getTracks().forEach((track) => track.stop());
+      streamRef.current = null;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -46,6 +47,10 @@ export default function ScanClient() {
         return;
       }
 
+      const existing = streamRef.current;
+      if (existing) existing.getTracks().forEach((track) => track.stop());
+      streamRef.current = null;
+
       const mediaStream = await navigator.mediaDevices.getUserMedia({
         video: {
           facingMode: { ideal: 'environment' },
@@ -55,6 +60,7 @@ export default function ScanClient() {
       });
 
       setStream(mediaStream);
+      streamRef.current = mediaStream;
       setHasPermission(true);
 
       if (videoRef.current) {
@@ -102,9 +108,20 @@ export default function ScanClient() {
         }
       }
 
+      const activeStream = streamRef.current;
+      if (activeStream) activeStream.getTracks().forEach((track) => track.stop());
+      streamRef.current = null;
+      setStream(null);
+
       router.push('/processing');
     } catch (error) {
       console.error('Error taking picture:', error);
+
+      const activeStream = streamRef.current;
+      if (activeStream) activeStream.getTracks().forEach((track) => track.stop());
+      streamRef.current = null;
+      setStream(null);
+
       router.push('/processing');
     } finally {
       setIsCapturing(false);
@@ -123,9 +140,10 @@ export default function ScanClient() {
     setIsCapturing(true);
 
     try {
-      if (stream) {
-        stream.getTracks().forEach((track) => track.stop());
-      }
+      const activeStream = streamRef.current;
+      if (activeStream) activeStream.getTracks().forEach((track) => track.stop());
+      streamRef.current = null;
+      setStream(null);
 
       const reader = new FileReader();
       reader.onload = () => {
@@ -153,9 +171,10 @@ export default function ScanClient() {
   };
 
   const handleBack = () => {
-    if (stream) {
-      stream.getTracks().forEach((track) => track.stop());
-    }
+    const activeStream = streamRef.current;
+    if (activeStream) activeStream.getTracks().forEach((track) => track.stop());
+    streamRef.current = null;
+    setStream(null);
     router.push('/home');
   };
 

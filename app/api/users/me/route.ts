@@ -3,6 +3,12 @@ import { cookies } from 'next/headers'
 import { NextResponse } from 'next/server'
 
 const COOKIE_NAME = 'auth_token'
+const USER_ID_COOKIE = 'user_id'
+
+async function hasAuthCookie(): Promise<boolean> {
+  const store = await cookies()
+  return Boolean(store.get(COOKIE_NAME)?.value || store.get(USER_ID_COOKIE)?.value)
+}
 
 function decodeJwtPayload(token: string): unknown {
   const parts = token.split('.')
@@ -34,6 +40,13 @@ async function getUserIdFromToken(): Promise<number | null> {
   return asNumber
 }
 
+async function getUserIdFromCookie(): Promise<number | null> {
+  const value = (await cookies()).get(USER_ID_COOKIE)?.value
+  if (!value) return null
+  const asNumber = Number(String(value))
+  return Number.isFinite(asNumber) && asNumber > 0 ? asNumber : null
+}
+
 async function getUserIdFromDashboard() {
   const dashRes = await backendFetch('/users/dashboard', { method: 'GET' })
   if (!dashRes.ok) {
@@ -57,6 +70,8 @@ async function getUserIdFromDashboard() {
 }
 
 async function getUserId() {
+  const fromCookie = await getUserIdFromCookie()
+  if (fromCookie) return fromCookie
   const fromToken = await getUserIdFromToken()
   if (fromToken) return fromToken
   return getUserIdFromDashboard()
@@ -64,6 +79,9 @@ async function getUserId() {
 
 export async function GET() {
   try {
+    if (!(await hasAuthCookie())) {
+      return NextResponse.json({ message: 'Unauthorized' }, { status: 401 })
+    }
     const userId = await getUserId()
     const res = await backendFetch(`/users/${userId}`, { method: 'GET' })
     const json = await res.json().catch(() => null)
@@ -78,6 +96,9 @@ export async function GET() {
 
 export async function PUT(req: Request) {
   try {
+    if (!(await hasAuthCookie())) {
+      return NextResponse.json({ message: 'Unauthorized' }, { status: 401 })
+    }
     const userId = await getUserId()
     const body = await req.json().catch(() => null)
     const res = await backendFetch(`/users/${userId}`, {
@@ -97,6 +118,9 @@ export async function PUT(req: Request) {
 
 export async function DELETE() {
   try {
+    if (!(await hasAuthCookie())) {
+      return NextResponse.json({ message: 'Unauthorized' }, { status: 401 })
+    }
     const userId = await getUserId()
     const res = await backendFetch(`/users/${userId}`, { method: 'DELETE' })
 

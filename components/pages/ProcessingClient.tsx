@@ -24,6 +24,73 @@ type ScanCreateResponse = {
   id?: number;
 };
 
+type PredictResponse = {
+  data?: any;
+  scan_id?: number;
+  id?: number;
+  disease_id?: number;
+  predicted_disease?: string;
+  confidence_score?: number;
+  confidence?: number;
+};
+
+function unwrap<T>(value: any): T {
+  if (value && typeof value === 'object' && 'data' in value) return (value as any).data as T;
+  return value as T;
+}
+
+function extractScanId(payload: unknown): number | null {
+  const data = unwrap<any>(payload as any);
+  const candidate =
+    data?.scan_id ??
+    data?.id ??
+    data?.data?.scan_id ??
+    data?.data?.id;
+
+  const asNumber = typeof candidate === 'number' ? candidate : Number(String(candidate ?? ''));
+  return Number.isFinite(asNumber) && asNumber > 0 ? asNumber : null;
+}
+
+function extractPrediction(payload: unknown): { diseaseId: number | null; confidence: number | null } {
+  const data = unwrap<any>(payload as any);
+  const diseaseCandidate =
+    data?.disease_id ??
+    data?.prediction?.disease_id ??
+    data?.result?.disease_id ??
+    data?.data?.disease_id;
+
+  const confidenceCandidate =
+    data?.confidence ??
+    data?.confidence_score ??
+    data?.prediction?.confidence_score ??
+    data?.result?.confidence_score ??
+    data?.data?.confidence_score;
+
+  const diseaseId =
+    typeof diseaseCandidate === 'number'
+      ? diseaseCandidate
+      : Number.isFinite(Number(String(diseaseCandidate ?? '')))
+        ? Number(String(diseaseCandidate))
+        : null;
+
+  const confidence =
+    typeof confidenceCandidate === 'number'
+      ? confidenceCandidate
+      : Number.isFinite(Number(String(confidenceCandidate ?? '')))
+        ? Number(String(confidenceCandidate))
+        : null;
+
+  return {
+    diseaseId: diseaseId && diseaseId > 0 ? diseaseId : null,
+    confidence: confidence != null && Number.isFinite(confidence) ? confidence : null,
+  };
+}
+
+async function dataUrlToBlob(dataUrl: string): Promise<Blob> {
+  const res = await fetch(dataUrl);
+  return await res.blob();
+}
+
 export default function ProcessingClient() {
   const router = useRouter();
 
@@ -45,10 +112,11 @@ export default function ProcessingClient() {
         return;
       }
 
-      // If a previous mount already completed, immediately continue.
+      // If a previous mount already completed AND we're past the voice-describe, continue to results.
       if (resultKey) {
         const existingScanId = sessionStorage.getItem(resultKey);
-        if (existingScanId) {
+        const voiceCompleted = sessionStorage.getItem(`voice_completed_${nonce}`);
+        if (existingScanId && voiceCompleted === '1') {
           sessionStorage.removeItem('scan_image');
           sessionStorage.removeItem('scan_nonce');
           sessionStorage.removeItem(inflightKey);
@@ -69,7 +137,8 @@ export default function ProcessingClient() {
             sessionStorage.removeItem('scan_nonce');
             sessionStorage.removeItem(inflightKey);
             sessionStorage.removeItem(errorKey);
-            router.replace(`/results/${finishedScanId}`);
+            // Go to voice-describe, not results
+            router.replace(`/voice-describe?scan_id=${finishedScanId}`);
             return;
           }
 
@@ -91,23 +160,65 @@ export default function ProcessingClient() {
       if (inflightKey) sessionStorage.setItem(inflightKey, '1');
 
       try {
-        const response = await fetch('/api/scans', {
+        // Predict using AI endpoint (multipart/form-data with `file`)
+        const blob = await dataUrlToBlob(imageDataUrl);
+        const form = new FormData();
+        form.append('file', blob, 'scan.jpg');
+
+        const predictResponse = await fetch('/api/ai/predict', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            image_url: imageDataUrl,
-          }),
+          body: form,
         });
 
-        const payload = (await response.json().catch(() => null)) as ScanCreateResponse | null;
-        const scanId = payload?.data?.scan_id ?? payload?.scan_id ?? payload?.data?.id ?? payload?.id;
+        const predictPayload =
+          (await predictResponse.json().catch(() => null)) as PredictResponse | null;
 
-        if (nonce && scanId && resultKey) {
-          sessionStorage.setItem(resultKey, String(scanId));
+        const scanId = extractScanId(predictPayload);
+        const prediction = extractPrediction(predictPayload);
+
+        if (nonce) {
+          const predKey = `scan_prediction_${nonce}`;
+          sessionStorage.setItem(
+            predKey,
+            JSON.stringify({
+              disease_id: prediction.diseaseId,
+              confidence_score: prediction.confidence,
+              created_at: new Date().toISOString(),
+            })
+          );
+        } else {
+          sessionStorage.setItem(
+            'scan_prediction_last',
+            JSON.stringify({
+              disease_id: prediction.diseaseId,
+              confidence_score: prediction.confidence,
+              created_at: new Date().toISOString(),
+            })
+          );
         }
 
-        if (nonce && (!response.ok || !scanId) && errorKey) {
-          sessionStorage.setItem(errorKey, '1');
+        if (!predictResponse.ok) {
+          if (nonce && errorKey) sessionStorage.setItem(errorKey, '1');
+          if (inflightKey) sessionStorage.removeItem(inflightKey);
+          sessionStorage.removeItem('scan_image');
+          sessionStorage.removeItem('scan_nonce');
+          if (cancelled) return;
+          router.replace('/results/unknown');
+          return;
+        }
+
+        if (!scanId) {
+          if (nonce && errorKey) sessionStorage.setItem(errorKey, '1');
+          if (inflightKey) sessionStorage.removeItem(inflightKey);
+          sessionStorage.removeItem('scan_image');
+          sessionStorage.removeItem('scan_nonce');
+          if (cancelled) return;
+          router.replace('/results/unknown');
+          return;
+        }
+
+        if (nonce && resultKey) {
+          sessionStorage.setItem(resultKey, String(scanId));
         }
 
         if (inflightKey) sessionStorage.removeItem(inflightKey);
@@ -116,12 +227,7 @@ export default function ProcessingClient() {
 
         if (cancelled) return;
 
-        if (!response.ok || !scanId) {
-          router.replace('/results/unknown');
-          return;
-        }
-
-        router.replace(`/results/${scanId}`);
+        router.replace(`/voice-describe?scan_id=${scanId}`);
       } catch {
         if (nonce && errorKey) sessionStorage.setItem(errorKey, '1');
         if (inflightKey) sessionStorage.removeItem(inflightKey);

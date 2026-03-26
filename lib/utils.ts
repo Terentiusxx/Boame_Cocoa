@@ -127,6 +127,40 @@ export function getDiseaseDisplayName(disease: string): string {
 }
 
 /**
+ * Map disease name (from history/home payloads) to a local image in /public/img.
+ * This keeps UI work independent from backend preview URLs.
+ */
+export function getDiseaseLocalImage(diseaseName?: string | null): string {
+  const v = (diseaseName || '').trim().toLowerCase()
+  if (!v) return '/img/unknown.png'
+
+  // Unknown-ish states
+  if (
+    v.includes('unknown') ||
+    v.includes("wasn't able") ||
+    v.includes('not able') ||
+    v.includes('cannot') ||
+    v.includes('unable')
+  ) {
+    return '/img/unknown.png'
+  }
+
+  // Specific diseases
+  if (v.includes('cssvd') || v.includes('swollen shoot') || v.includes('swollen')) {
+    return '/img/ccsvd.png'
+  }
+  if (v.includes('black pod') || v.includes('blackpod')) {
+    return '/img/blackpod.png'
+  }
+  if (v.includes('vascular') || (v.includes('streak') && v.includes('dieback'))) {
+    return '/img/vascularstreak.png'
+  }
+
+  // Fallback
+  return '/img/unknown.png'
+}
+
+/**
  * Get confidence level label
  */
 export function getConfidenceLabel(confidence: number): {

@@ -1,5 +1,6 @@
 import { cookies } from 'next/headers'
 import { NextResponse } from 'next/server'
+import { isDev, getMockResponse } from './devMode'
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL
 const COOKIE_NAME = 'auth_token'
@@ -14,6 +15,41 @@ async function getToken() {
 }
 
 export async function backendFetch(path: string, init?: RequestInit) {
+  // Dev mode: use hardcoded data instead of backend
+  if (isDev()) {
+    const method = init?.method || 'GET'
+    let body: unknown = undefined
+    if (typeof init?.body === 'string') {
+      try {
+        body = JSON.parse(init.body)
+      } catch {
+        body = undefined
+      }
+    }
+    const mockResponse = getMockResponse(path, method, body)
+    
+    if (mockResponse) {
+      const responseInit: ResponseInit = {
+        status: mockResponse.status,
+        headers: { 'Content-Type': 'application/json' },
+      }
+      
+      if (mockResponse.error) {
+        return new Response(JSON.stringify({ error: mockResponse.error }), responseInit)
+      }
+      
+      console.log(`[DEV MODE] ${method} ${path}`, mockResponse.data)
+      return new Response(JSON.stringify(mockResponse.data), responseInit)
+    }
+    
+    // If no mock found, return 404
+    return new Response(
+      JSON.stringify({ error: `[DEV MODE] No mock data for ${method} ${path}` }),
+      { status: 404, headers: { 'Content-Type': 'application/json' } }
+    )
+  }
+
+  // Production: use real backend
   const baseUrl = requireApiUrl()
   const token = await getToken()
 
