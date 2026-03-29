@@ -3,20 +3,7 @@
 import Link from 'next/link';
 import { useState } from 'react';
 
-function StatusBar() {
-  return (
-    <div className="flex justify-between items-center px-5 py-2 text-sm font-semibold bg-background sticky top-0 z-10">
-      <div className="flex items-center gap-1">
-        <div className="flex gap-1">
-          <div className="w-1 h-3 bg-black rounded-sm"></div>
-          <div className="w-1 h-3 bg-black rounded-sm"></div>
-          <div className="w-1 h-3 bg-black rounded-sm"></div>
-          <div className="w-1 h-3 bg-gray-300 rounded-sm"></div>
-        </div>
-      </div>
-    </div>
-  );
-}
+
 
 interface Language {
   code: string;
@@ -43,7 +30,7 @@ export default function ChangeLanguageClient() {
 
   return (
     <div className="max-w-mobile mx-auto min-h-screen bg-background relative shadow-mobile">
-      <StatusBar />
+       
 
       <div className="pb-6">
         <div className="flex items-center justify-between py-4 mb-6 px-6">

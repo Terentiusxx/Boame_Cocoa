@@ -2,21 +2,8 @@
 
 import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import { FiCheck } from 'react-icons/fi';
 
-function StatusBar() {
-  return (
-    <div className="flex justify-between items-center px-5 py-2 text-sm font-semibold bg-background sticky top-0 z-10">
-      <div className="flex items-center gap-1">
-        <div className="flex gap-1">
-          <div className="w-1 h-3 bg-black rounded-sm"></div>
-          <div className="w-1 h-3 bg-black rounded-sm"></div>
-          <div className="w-1 h-3 bg-black rounded-sm"></div>
-          <div className="w-1 h-3 bg-gray-300 rounded-sm"></div>
-        </div>
-      </div>
-    </div>
-  );
-}
 
 type ScanCreateResponse = {
   data?: { scan_id?: number; id?: number };
@@ -247,7 +234,6 @@ export default function ProcessingClient() {
 
   return (
     <div className="max-w-mobile mx-auto min-h-screen bg-background relative shadow-mobile">
-      <StatusBar />
 
       <div className="flex flex-col items-center justify-center h-full px-6 text-center">
         <div className="relative mb-8">
@@ -264,14 +250,14 @@ export default function ProcessingClient() {
         <div className="mt-8 space-y-3 text-sm">
           <div className="flex items-center text-green-600">
             <div className="w-4 h-4 bg-green-600 rounded-full mr-3 flex items-center justify-center">
-              <span className="text-white text-xs">✓</span>
+              <FiCheck size={12} className="text-white" />
             </div>
             Image captured successfully
           </div>
 
           <div className="flex items-center text-green-600">
             <div className="w-4 h-4 bg-green-600 rounded-full mr-3 flex items-center justify-center">
-              <span className="text-white text-xs">✓</span>
+              <FiCheck size={12} className="text-white" />
             </div>
             Processing with AI model
           </div>

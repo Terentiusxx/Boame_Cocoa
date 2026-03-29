@@ -3,20 +3,7 @@
 import Link from 'next/link';
 import SettingsItem from '@/components/SettingsItem';
 
-function StatusBar() {
-  return (
-    <div className="flex justify-between items-center px-5 py-2 text-sm font-semibold bg-background sticky top-0 z-10">
-      <div className="flex items-center gap-1">
-        <div className="flex gap-1">
-          <div className="w-1 h-3 bg-black rounded-sm"></div>
-          <div className="w-1 h-3 bg-black rounded-sm"></div>
-          <div className="w-1 h-3 bg-black rounded-sm"></div>
-          <div className="w-1 h-3 bg-gray-300 rounded-sm"></div>
-        </div>
-      </div>
-    </div>
-  );
-}
+
 
 export default function SettingsClient() {
   const handleLogout = async () => {
@@ -26,7 +13,7 @@ export default function SettingsClient() {
 
   return (
     <div className="max-w-mobile mx-auto min-h-screen bg-background relative shadow-mobile">
-      <StatusBar />
+       
 
       <div className="pb-6">
         <div className="flex items-center justify-between py-4 mb-6 px-6">
@@ -41,7 +28,7 @@ export default function SettingsClient() {
         </div>
 
         <div className="mb-6">
-          <SettingsItem id="notifications" title="Notifications" icon="🔔" />
+          <SettingsItem id="notifications" title="Notifications" icon="bell" />
         </div>
 
         <div className="mb-6">
@@ -49,9 +36,9 @@ export default function SettingsClient() {
             <h3 className="text-sm font-medium text-gray-500 uppercase tracking-wide">Account Setting</h3>
           </div>
           <div className="bg-white">
-            <SettingsItem id="edit-profile" title="Edit profile" icon="👤" />
-            <SettingsItem id="change-language" title="Change language" icon="🌐" />
-            <SettingsItem id="privacy" title="Privacy" icon="🔒" />
+            <SettingsItem id="edit-profile" title="Edit profile" icon="user" />
+            <SettingsItem id="change-language" title="Change language" icon="globe" />
+            <SettingsItem id="privacy" title="Privacy" icon="lock" />
           </div>
         </div>
 
@@ -60,9 +47,9 @@ export default function SettingsClient() {
             <h3 className="text-sm font-medium text-gray-500 uppercase tracking-wide">Legal</h3>
           </div>
           <div className="bg-white">
-            <SettingsItem id="terms" title="Terms and Condition" icon="📄" />
-            <SettingsItem id="privacy-policy" title="Privacy policy" icon="🛡️" />
-            <SettingsItem id="help" title="Help" icon="❓" />
+            <SettingsItem id="terms" title="Terms and Condition" icon="document" />
+            <SettingsItem id="privacy-policy" title="Privacy policy" icon="shield" />
+            <SettingsItem id="help" title="Help" icon="help-circle" />
           </div>
         </div>
 

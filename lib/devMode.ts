@@ -16,7 +16,7 @@ export const mockDiseases = [
     description: 'Fungal disease affecting cocoa pods',
     urgency_level: 'high',
     image_url: '/img/blackpod.png',
-    icon_name: '🍫',
+    icon_name: 'shield-alert',
     treatments: [{ name: 'Remove infected pods' }, { name: 'Apply fungicide' }],
   },
   {
@@ -25,7 +25,7 @@ export const mockDiseases = [
     description: 'Cocoa Swollen Shoot Virus Disease',
     urgency_level: 'high',
     image_url: '/img/ccsvd.png',
-    icon_name: '🦠',
+    icon_name: 'virus',
     treatments: [{ name: 'Remove infected trees' }, { name: 'Control vectors' }],
   },
   {
@@ -34,7 +34,7 @@ export const mockDiseases = [
     description: 'Disease affecting vascular tissue causing dieback',
     urgency_level: 'medium',
     image_url: '/img/vascularstreak.png',
-    icon_name: '🌿',
+    icon_name: 'leaf',
     treatments: [{ name: 'Prune affected branches' }, { name: 'Improve sanitation' }],
   },
   {
@@ -43,7 +43,7 @@ export const mockDiseases = [
     description: 'No disease detected',
     urgency_level: 'low',
     image_url: '/img/unknown.png',
-    icon_name: '❓',
+    icon_name: 'help-circle',
     treatments: [{ name: 'Try a clearer photo' }],
   },
 ]
@@ -187,6 +187,23 @@ export const mockMessages: MockMessage[] = [
     sender: 'expert',
     content: 'How often do you apply compost?',
     created_at: new Date(Date.now() - 26 * 60 * 60 * 1000).toISOString(),
+  },
+]
+
+export const mockNotifications = [
+  {
+    notification_id: 1,
+    title: 'Scan Ready',
+    message: 'Your latest cocoa scan result is now available.',
+    is_read: false,
+    created_at: new Date(Date.now() - 30 * 60 * 1000).toISOString(),
+  },
+  {
+    notification_id: 2,
+    title: 'Farming Tip',
+    message: 'Prune infected pods early to reduce disease spread.',
+    is_read: true,
+    created_at: new Date(Date.now() - 20 * 60 * 60 * 1000).toISOString(),
   },
 ]
 
@@ -434,6 +451,29 @@ export function getMockResponse(path: string, method: string = 'GET', body?: any
     return { status: 200, data: mockThreads }
   }
 
+  if (/^\/messages\/consultation\/\d+$/.test(normalizedPath) && verb === 'GET') {
+    const id = parseInt(normalizedPath.split('/').pop() || '0')
+    // In dev mode we treat consultation_id as thread_id for convenience
+    const messages = mockMessages
+      .filter((m) => m.thread_id === id)
+      .map((m) => ({
+        message_id: m.message_id,
+        consultation_id: id,
+        content: m.content,
+        sender_id: m.sender === 'user' ? mockUser.user_id : (mockThreads.find((t) => t.thread_id === id)?.expert_id ?? 0),
+        created_at: m.created_at,
+      }))
+      .sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime())
+    return { status: 200, data: messages }
+  }
+
+  if (/^\/messages\/consultation\/\d+\/unread-count$/.test(normalizedPath) && verb === 'GET') {
+    const parts = normalizedPath.split('/')
+    const id = parseInt(parts[parts.length - 2] || '0')
+    const thread = mockThreads.find((t) => t.thread_id === id)
+    return { status: 200, data: { unread_count: thread?.unread_count ?? 0 } }
+  }
+
   if (/^\/messages\/\d+$/.test(normalizedPath) && verb === 'GET') {
     const id = parseInt(normalizedPath.split('/').pop() || '0')
     const thread = mockThreads.find((t) => t.thread_id === id)
@@ -442,6 +482,11 @@ export function getMockResponse(path: string, method: string = 'GET', body?: any
       .filter((m) => m.thread_id === id)
       .sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime())
     return { status: 200, data: { thread, messages } }
+  }
+
+  // Notifications endpoints
+  if (normalizedPath === '/notifications' && verb === 'GET') {
+    return { status: 200, data: mockNotifications }
   }
 
   // Default: return null to indicate no mock for this endpoint

@@ -5,7 +5,7 @@
     "urgency_level": "high",
     "symtoms": "What should you know whilst learning about this disease",
     "image_url": "/img/blackpod.png",
-    "icon_name": "🌿",
+    "icon_name": "shield-alert",
     "color_hex": "#ec221f"
   },
   {
@@ -14,7 +14,7 @@
     "urgency_level": "high",
     "symtoms": "What should you know whilst learning about this disease",
     "image_url": "/img/cssvd.png",
-    "icon_name": "🌿",
+    "icon_name": "virus",
     "color_hex": "#ec221f"
   },
   {
@@ -23,7 +23,7 @@
     "urgency_level": "medium",
     "symtoms": "What should you know whilst learning about this disease",
     "image_url": "/img/blackpod.png",
-    "icon_name": "🌿",
+    "icon_name": "leaf",
     "color_hex": "#bf6a02"
   },
   {
@@ -32,7 +32,7 @@
     "urgency_level": "medium",
     "symtoms": "What should you know whilst learning about this disease",
     "image_url": "/img/ccsvd.png",
-    "icon_name": "🌿",
+    "icon_name": "leaf",
     "color_hex": "#bf6a02"
   },
   {
@@ -41,7 +41,7 @@
     "urgency_level": "medium",
     "symtoms": "Small black pud grows from round looking swelling",
     "image_url": "/img/vascularstreak.png",
-    "icon_name": "🌿",
+    "icon_name": "leaf",
     "color_hex": "#bf6a02"
   },
   {
@@ -50,7 +50,7 @@
     "urgency_level": "medium",
     "symtoms": "What should you know whilst learning about this disease",
     "image_url": "/img/blackpod.png",
-    "icon_name": "🌿",
+    "icon_name": "leaf",
     "color_hex": "#bf6a02"
   },
   {
@@ -59,7 +59,7 @@
     "urgency_level": "low",
     "symtoms": "What should you know whilst learning about this disease",
     "image_url": "/img/unknown.png",
-    "icon_name": "🌿",
+    "icon_name": "leaf",
     "color_hex": "#1f4e20"
   },
   {
@@ -68,7 +68,7 @@
     "urgency_level": "low",
     "symtoms": "What should you know whilst learning about this disease",
     "image_url": "/img/unknown.png",
-    "icon_name": "🌿",
+    "icon_name": "leaf",
     "color_hex": "#1f4e20"
   }
 ]

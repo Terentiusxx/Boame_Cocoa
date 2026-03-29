@@ -2,21 +2,9 @@
 
 import Link from 'next/link';
 import { useState } from 'react';
+import { FiChevronDown, FiMail, FiSmartphone } from 'react-icons/fi'
 
-function StatusBar() {
-  return (
-    <div className="flex justify-between items-center px-5 py-2 text-sm font-semibold bg-background sticky top-0 z-10">
-      <div className="flex items-center gap-1">
-        <div className="flex gap-1">
-          <div className="w-1 h-3 bg-black rounded-sm"></div>
-          <div className="w-1 h-3 bg-black rounded-sm"></div>
-          <div className="w-1 h-3 bg-black rounded-sm"></div>
-          <div className="w-1 h-3 bg-gray-300 rounded-sm"></div>
-        </div>
-      </div>
-    </div>
-  );
-}
+
 
 interface FAQItem {
   question: string;
@@ -71,7 +59,7 @@ export default function HelpClient() {
 
   return (
     <div className="max-w-mobile mx-auto min-h-screen bg-background relative shadow-mobile">
-      <StatusBar />
+       
 
       <div className="pb-6">
         <div className="flex items-center justify-between py-4 mb-6 px-6">
@@ -91,13 +79,13 @@ export default function HelpClient() {
             <div className="space-y-2">
               <button className="w-full text-left p-4 bg-blue-50 border border-blue-200 rounded-lg hover:bg-blue-100 transition-colors">
                 <div className="flex items-center gap-3">
-                  <span className="text-blue-600 text-xl">📧</span>
+                  <FiMail size={20} className="text-blue-600" />
                   <span className="font-medium text-blue-900">Contact Support</span>
                 </div>
               </button>
               <button className="w-full text-left p-4 bg-green-50 border border-green-200 rounded-lg hover:bg-green-100 transition-colors">
                 <div className="flex items-center gap-3">
-                  <span className="text-green-600 text-xl">📱</span>
+                  <FiSmartphone size={20} className="text-green-600" />
                   <span className="font-medium text-green-900">App Tutorial</span>
                 </div>
               </button>
@@ -114,11 +102,10 @@ export default function HelpClient() {
                     onClick={() => toggleFAQ(index)}
                   >
                     <span>{faq.question}</span>
-                    <span
+                    <FiChevronDown
+                      size={18}
                       className={`transform transition-transform ${expandedFAQ === index ? 'rotate-180' : ''}`}
-                    >
-                      ▼
-                    </span>
+                    />
                   </button>
                   {expandedFAQ === index && (
                     <div className="px-4 pb-4 text-gray-600 text-sm leading-relaxed border-t border-gray-100">

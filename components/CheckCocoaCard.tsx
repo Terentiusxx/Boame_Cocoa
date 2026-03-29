@@ -33,7 +33,7 @@ export default function CheckCocoaCard() {
       {/* Scan Now Button */}
       <Link 
         href="/scan" 
-        className="block bg-brand-buttons text-white px-8 py-3 rounded-full text-sm font-semibold text-center transition-all hover:opacity-90 w-fit mx-auto"
+        className="block bg-brand-buttons text-white px-8 py-2 rounded-full text-xs font-semibold text-center transition-all hover:opacity-90 w-fit mx-auto"
       >
         Scan now
       </Link>

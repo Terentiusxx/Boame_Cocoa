@@ -14,25 +14,9 @@ function unwrap<T>(value: MaybeWrapped<T>): T {
   return value as T;
 }
 
-function StatusBar() {
-  return (
-    <div className="flex justify-between items-center px-5 py-2 text-sm font-semibold bg-background sticky top-0 z-10">
-      <div className="flex items-center gap-1">
-        <div className="flex gap-1">
-          <div className="w-1 h-3 bg-black rounded-sm"></div>
-          <div className="w-1 h-3 bg-black rounded-sm"></div>
-          <div className="w-1 h-3 bg-black rounded-sm"></div>
-          <div className="w-1 h-3 bg-gray-300 rounded-sm"></div>
-        </div>
-      </div>
-    </div>
-  );
-}
-
 function DiseaseNotFound() {
   return (
     <div className="max-w-mobile mx-auto min-h-screen bg-background relative shadow-mobile">
-      <StatusBar />
       <div className="px-6 py-4">
         <p>Disease not found</p>
         <Link

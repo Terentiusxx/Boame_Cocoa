@@ -1,11 +1,14 @@
 'use client';
 
 import { useRouter } from 'next/navigation';
+import { FiArrowRight } from 'react-icons/fi';
+import { IconName, ICON_MAP } from '@/lib/icons';
+import IconComponent from './IconComponent';
 
 interface SettingsItemProps {
   id: string;
   title: string;
-  icon?: string;
+  icon?: IconName;
   hasArrow?: boolean;
   onClick?: () => void;
 }
@@ -35,12 +38,12 @@ export default function SettingsItem({
     >
       <div className="flex items-center gap-3">
         {icon && (
-          <span className="text-lg">{icon}</span>
+          <IconComponent icon={icon} size={20} />
         )}
         <span className="text-brand-input-text font-medium">{title}</span>
       </div>
       {hasArrow && (
-        <span className="text-brand-sub-text text-lg">❯</span>
+        <FiArrowRight size={20} className="text-brand-sub-text" />
       )}
     </div>
   );

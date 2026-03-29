@@ -2,6 +2,8 @@
 
 import Image from "next/image";
 import { useRouter } from 'next/navigation';
+import IconComponent from '@/components/IconComponent'
+import { ICON_MAP } from '@/lib/icons'
 
 interface DiseaseCardProps {
   id: string;
@@ -39,11 +41,11 @@ export default function DiseaseCard({
 
   return (
     <div 
-      className="bg-gray-50 rounded-brand p-4 my-3 flex items-center justify-between cursor-pointer transition-transform hover:translate-x-1"
+      className="bg-white rounded-brand p-4 my-3 flex items-center justify-between cursor-pointer transition-transform hover:translate-x-1"
       onClick={handleClick}
     >
       <div className="flex items-center gap-4">
-        <div className="w-12 h-12 rounded-brand-sm bg-green-50 flex items-center justify-center text-2xl">
+        <div className="w-12 h-12 rounded-brand-sm bg-[#E2E2E2] flex items-center justify-center text-2xl">
           {image ? (
             <Image
               src={image}
@@ -59,7 +61,7 @@ export default function DiseaseCard({
           <p className={`${urgencyColorMap[urgencyClass] || 'text-gray-600'} font-semibold text-sm`}>{urgency}</p>
         </div>
       </div>
-      <span className="text-gray-400 text-xl">❯</span>
+      <IconComponent icon={ICON_MAP.forward} size={25} className="text-gray-400" />
     </div>
   );
 }

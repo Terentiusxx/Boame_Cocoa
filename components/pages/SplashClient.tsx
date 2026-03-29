@@ -3,21 +3,6 @@
 import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 
-function StatusBar() {
-  return (
-    <div className="flex justify-between items-center px-5 py-2 text-sm font-semibold bg-background sticky top-0 z-10 text-white">
-      <div className="flex items-center gap-1">
-        <div className="flex gap-1">
-          <div className="w-1 h-3 bg-white rounded-sm"></div>
-          <div className="w-1 h-3 bg-white rounded-sm"></div>
-          <div className="w-1 h-3 bg-white rounded-sm"></div>
-          <div className="w-1 h-3 bg-white opacity-50 rounded-sm"></div>
-        </div>
-      </div>
-    </div>
-  );
-}
-
 export default function SplashClient() {
   const router = useRouter();
 
@@ -38,31 +23,31 @@ export default function SplashClient() {
       className="max-w-mobile mx-auto min-h-screen bg-background relative shadow-mobile bg-gradient-to-b from-green-800 via-green-600 to-green-700 cursor-pointer"
       onClick={handleTap}
     >
-      <StatusBar />
+       
 
       <div className="flex flex-col items-center justify-center h-full relative overflow-hidden">
-        <div className="absolute inset-0 opacity-20">
-          <div className="absolute top-10 left-4 text-6xl rotate-12">🌿</div>
-          <div className="absolute top-32 right-8 text-4xl -rotate-12">🍃</div>
-          <div className="absolute bottom-32 left-8 text-5xl rotate-45">🌱</div>
-          <div className="absolute bottom-16 right-12 text-3xl -rotate-45">🍃</div>
-          <div className="absolute top-1/2 left-2 text-4xl rotate-90">🌿</div>
-          <div className="absolute top-1/3 right-4 text-3xl -rotate-12">🌱</div>
+        <div className="absolute inset-0 opacity-10">
+          <div className="absolute top-10 left-4 w-16 h-16 rounded-full bg-white rotate-12"></div>
+          <div className="absolute top-32 right-8 w-10 h-10 rounded-full bg-white -rotate-12"></div>
+          <div className="absolute bottom-32 left-8 w-12 h-12 rounded-full bg-white rotate-45"></div>
+          <div className="absolute bottom-16 right-12 w-8 h-8 rounded-full bg-white -rotate-45"></div>
+          <div className="absolute top-1/2 left-2 w-10 h-10 rounded-full bg-white rotate-90"></div>
+          <div className="absolute top-1/3 right-4 w-8 h-8 rounded-full bg-white -rotate-12"></div>
         </div>
 
         <div className="z-10 text-center px-8">
           <div className="relative mb-8">
             <div className="flex justify-center items-center mb-4">
               <div className="relative">
-                <div className="absolute -top-4 -left-6 text-4xl animate-pulse">🍫</div>
-                <div className="absolute -top-2 right-4 text-3xl animate-pulse delay-300">🟤</div>
+                <div className="absolute -top-4 -left-6 w-8 h-8 rounded-full bg-white/30 animate-pulse"></div>
+                <div className="absolute -top-2 right-4 w-6 h-6 rounded-full bg-white/30 animate-pulse delay-300"></div>
 
-                <div className="bg-white bg-opacity-20 rounded-full p-6 backdrop-blur-sm">
-                  <div className="text-6xl">🌿</div>
+                <div className="bg-white bg-opacity-20 rounded-full p-6 backdrop-blur-sm flex items-center justify-center">
+                  <div className="w-12 h-12 bg-white rounded-full"></div>
                 </div>
 
-                <div className="absolute -bottom-2 -right-4 text-white text-2xl opacity-60">〰️</div>
-                <div className="absolute -bottom-4 left-2 text-white text-xl opacity-40 rotate-180">〰️</div>
+                <div className="absolute -bottom-2 -right-4 text-white text-2xl opacity-60">·</div>
+                <div className="absolute -bottom-4 left-2 text-white text-xl opacity-40 rotate-180">·</div>
               </div>
             </div>
           </div>

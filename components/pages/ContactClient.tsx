@@ -3,21 +3,9 @@
 import Link from 'next/link';
 import { FormEvent, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
+import { FiUser } from 'react-icons/fi';
 
-function StatusBar() {
-  return (
-    <div className="flex justify-between items-center px-5 py-2 text-sm font-semibold bg-background sticky top-0 z-10">
-      <div className="flex items-center gap-1">
-        <div className="flex gap-1">
-          <div className="w-1 h-3 bg-black rounded-sm"></div>
-          <div className="w-1 h-3 bg-black rounded-sm"></div>
-          <div className="w-1 h-3 bg-black rounded-sm"></div>
-          <div className="w-1 h-3 bg-gray-300 rounded-sm"></div>
-        </div>
-      </div>
-    </div>
-  );
-}
+
 
 export default function ContactClient() {
   const searchParams = useSearchParams();
@@ -62,7 +50,7 @@ export default function ContactClient() {
 
   return (
     <div className="max-w-mobile mx-auto min-h-screen bg-background relative shadow-mobile">
-      <StatusBar />
+       
 
       <div className="px-6 pb-6">
         <div className="flex items-center justify-between py-4 mb-6">
@@ -79,7 +67,7 @@ export default function ContactClient() {
         <div className="space-y-6">
           <div className="text-center mb-8">
             <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
-              <span className="text-2xl">👨‍🌾</span>
+              <FiUser size={32} className="text-green-600" />
             </div>
             <h2 className="text-xl font-semibold text-brand-text-titles mb-2">Get Expert Help</h2>
             <p className="text-brand-sub-text font-normal">

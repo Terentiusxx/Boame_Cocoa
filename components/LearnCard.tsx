@@ -1,6 +1,7 @@
 'use client';
 
 import { useRouter } from 'next/navigation';
+import IconComponent from './IconComponent';
 
 interface LearnCardProps {
   diseaseId: string | number;
@@ -56,7 +57,9 @@ export default function LearnCard({
               loading="lazy"
             />
           ) : (
-            <div className="w-16 h-16 bg-green-100 rounded-lg flex items-center justify-center text-2xl">🍃</div>
+            <div className="w-16 h-16 bg-green-100 rounded-lg flex items-center justify-center">
+              <IconComponent icon="leaf" size={32} />
+            </div>
           )}
         </div>
         <h3 className="font-semibold text-gray-900 text-sm mb-2 leading-tight">{name}</h3>

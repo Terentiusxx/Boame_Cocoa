@@ -3,21 +3,9 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+import { FiEye, FiEyeOff } from 'react-icons/fi';
 
-function StatusBar() {
-  return (
-    <div className="flex justify-between items-center px-5 py-2 text-sm font-semibold bg-background sticky top-0 z-10">
-      <div className="flex items-center gap-1">
-        <div className="flex gap-1">
-          <div className="w-1 h-3 bg-black rounded-sm"></div>
-          <div className="w-1 h-3 bg-black rounded-sm"></div>
-          <div className="w-1 h-3 bg-black rounded-sm"></div>
-          <div className="w-1 h-3 bg-gray-300 rounded-sm"></div>
-        </div>
-      </div>
-    </div>
-  );
-}
+
 
 export default function CreateAccountClient() {
   const [name, setName] = useState('');
@@ -63,7 +51,7 @@ export default function CreateAccountClient() {
 
   return (
     <div className="max-w-mobile mx-auto min-h-screen bg-background relative shadow-mobile">
-      <StatusBar />
+       
 
       <div className="px-6 pb-6 flex flex-col h-full">
         <div className="flex items-center justify-between py-4 mb-8">
@@ -79,14 +67,14 @@ export default function CreateAccountClient() {
         <div className="flex-1 flex flex-col justify-center">
           <div className="text-center mb-12">
             <h1 className="text-3xl font-bold text-brand-text-titles mb-2">Create Account</h1>
-            <p className="text-brand-sub-text font-normal text-lg">Fill in the details to sign up</p>
-          </div>
-
-          <form onSubmit={handleSignUp} className="space-y-6">
-            <div>
-              <label className="block text-sm font-medium text-brand-sub-titles font-semibold mb-3">
-                Your Name
-              </label>
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="absolute right-4 top-1/2 transform -translate-y-1/2 text-gray-500"
+                  >
+                    {showPassword ? <FiEyeOff size={20} /> : <FiEye size={20} />}
+                  </button>
+              </div>
               <input
                 type="text"
                 value={name}
@@ -144,7 +132,7 @@ export default function CreateAccountClient() {
                   onClick={() => setShowPassword(!showPassword)}
                   className="absolute right-4 top-1/2 transform -translate-y-1/2 text-gray-500"
                 >
-                  {showPassword ? '🙈' : '👁️'}
+                  {showPassword ? <FiEyeOff size={20} /> : <FiEye size={20} />}
                 </button>
               </div>
             </div>
@@ -155,7 +143,7 @@ export default function CreateAccountClient() {
             >
               Sign Up
             </button>
-          </form>
+          </div>
 
           <div className="text-center mt-8">
             <p className="text-brand-sub-text font-normal">
@@ -169,7 +157,5 @@ export default function CreateAccountClient() {
             </p>
           </div>
         </div>
-      </div>
-    </div>
   );
 }

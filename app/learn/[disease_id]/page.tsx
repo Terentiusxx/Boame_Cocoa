@@ -1,5 +1,6 @@
 import Link from 'next/link'
-
+import IconComponent from '@/components/IconComponent'
+import { IconName } from '@/lib/icons'
 import { serverApi } from '@/lib/serverAPI'
 
 type WithData<T> = { data: T }
@@ -20,21 +21,6 @@ function unwrap<T>(value: unknown): T | null {
     return ((value as WithData<T>).data ?? null) as T | null
   }
   return (value ?? null) as T | null
-}
-
-function StatusBar() {
-  return (
-    <div className="flex justify-between items-center px-5 py-2 text-sm font-semibold bg-background sticky top-0 z-10">
-      <div className="flex items-center gap-1">
-        <div className="flex gap-1">
-          <div className="w-1 h-3 bg-black rounded-sm"></div>
-          <div className="w-1 h-3 bg-black rounded-sm"></div>
-          <div className="w-1 h-3 bg-black rounded-sm"></div>
-          <div className="w-1 h-3 bg-gray-300 rounded-sm"></div>
-        </div>
-      </div>
-    </div>
-  )
 }
 
 function urgencyLabel(value?: string) {
@@ -65,7 +51,6 @@ export default async function LearnDiseasePage({
   if (!Number.isFinite(diseaseId) || diseaseId <= 0) {
     return (
       <div className="max-w-mobile mx-auto min-h-screen bg-background relative shadow-mobile">
-        <StatusBar />
         <div className="px-6 pb-6">
           <div className="flex items-center justify-between py-4 mb-6">
             <Link
@@ -93,13 +78,11 @@ export default async function LearnDiseasePage({
   }
 
   const name = disease?.name || 'Disease'
-  const icon = disease?.icon_name || '🌿'
+  const icon = (disease?.icon_name || 'leaf') as IconName
   const urgency = urgencyLabel(disease?.urgency_level)
 
   return (
     <div className="max-w-mobile mx-auto min-h-screen bg-background relative shadow-mobile">
-      <StatusBar />
-
       <div className="px-6 pb-6">
         <div className="flex items-center justify-between py-4 mb-6">
           <Link
@@ -114,7 +97,7 @@ export default async function LearnDiseasePage({
 
         <div className="text-center mb-8">
           <div className="w-24 h-24 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
-            <span className="text-4xl">{icon}</span>
+            <IconComponent icon={icon} size={48} />
           </div>
 
           <h2 className="text-2xl font-bold text-brand-text-titles mb-2">{name}</h2>

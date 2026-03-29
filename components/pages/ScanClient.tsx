@@ -3,21 +3,9 @@
 import { type ChangeEvent, useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+import { FiX } from 'react-icons/fi';
+import { FiCamera } from 'react-icons/fi';
 
-function StatusBar() {
-  return (
-    <div className="flex justify-between items-center px-5 py-2 text-sm font-semibold bg-background sticky top-0 z-10 text-white">
-      <div className="flex items-center gap-1">
-        <div className="flex gap-1">
-          <div className="w-1 h-3 bg-white rounded-sm"></div>
-          <div className="w-1 h-3 bg-white rounded-sm"></div>
-          <div className="w-1 h-3 bg-white rounded-sm"></div>
-          <div className="w-1 h-3 bg-white opacity-50 rounded-sm"></div>
-        </div>
-      </div>
-    </div>
-  );
-}
 
 export default function ScanClient() {
   const [hasPermission, setHasPermission] = useState<boolean | null>(null);
@@ -181,7 +169,6 @@ export default function ScanClient() {
   if (hasPermission === null) {
     return (
       <div className="max-w-mobile mx-auto min-h-screen bg-background relative shadow-mobile bg-black flex flex-col">
-        <StatusBar />
         <div className="flex-1 flex items-center justify-center text-white">
           <div className="text-center">
             <div className="w-16 h-16 border-4 border-white border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
@@ -195,10 +182,11 @@ export default function ScanClient() {
   if (hasPermission === false) {
     return (
       <div className="max-w-mobile mx-auto min-h-screen bg-background relative shadow-mobile bg-black flex flex-col">
-        <StatusBar />
         <div className="flex-1 flex flex-col items-center justify-center text-white p-6">
           <div className="text-center mb-8">
-            <div className="text-6xl mb-4">📷</div>
+            <div className="flex justify-center mb-4">
+              <FiCamera size={56} className="text-white" />
+            </div>
             <h2 className="text-xl font-semibold mb-4">Camera Access Needed</h2>
             <p className="text-center mb-6 text-gray-300">
               We need access to your camera to scan cocoa plants and detect diseases.
@@ -234,7 +222,6 @@ export default function ScanClient() {
 
   return (
     <div className="max-w-mobile mx-auto min-h-screen bg-background relative shadow-mobile bg-black overflow-hidden flex flex-col">
-      <StatusBar />
 
       <div className="relative flex-1 min-h-0">
         <video
@@ -261,7 +248,7 @@ export default function ScanClient() {
           onClick={handleBack}
           className="absolute top-4 right-4 z-10 bg-black bg-opacity-50 text-white rounded-full w-8 h-8 flex items-center justify-center"
         >
-          ✕
+          <FiX size={20} />
         </button>
 
         <div className="absolute top-16 left-0 right-0 z-10">

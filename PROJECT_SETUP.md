@@ -2,14 +2,14 @@
 
 A Next.js web application for detecting and managing cocoa plant diseases using AI-powered image analysis.
 
-## 🚀 Tech Stack
+## Tech Stack
 
 - **Framework**: Next.js 16 (App Router)
 - **Language**: TypeScript
 - **Styling**: Tailwind CSS v4
 - **UI**: React 19
 
-## 📁 Project Structure
+## Project Structure
 
 ```
 boame_cocoa/
@@ -29,7 +29,7 @@ boame_cocoa/
 └── package.json            # Dependencies
 ```
 
-## 🎨 Design System
+## Design System
 
 ### Color Palette
 
@@ -70,7 +70,7 @@ Defined in `app/globals.css` using CSS custom properties:
 
 Defined font sizes, spacing, border radius, and shadows in `globals.css`.
 
-## 📝 Constants & Configuration
+## Constants & Configuration
 
 All app-wide constants are defined in `lib/constants.ts`:
 
@@ -88,7 +88,7 @@ import { ROUTES, COCOA_DISEASES } from '@/lib/constants';
 <Link href={ROUTES.DASHBOARD}>Dashboard</Link>
 ```
 
-## 🔧 Utility Functions
+## Utility Functions
 
 Common utilities in `lib/utils.ts`:
 
@@ -108,7 +108,7 @@ const classes = cn('bg-primary', isActive && 'bg-primary-dark');
 const valid = isValidEmail(email);
 ```
 
-## 📋 TypeScript Types
+## TypeScript Types
 
 Shared types and interfaces in `lib/types.ts`:
 
@@ -126,7 +126,7 @@ import { User, ScanResult } from '@/lib/types';
 const user: User = { ... };
 ```
 
-## 🌍 Environment Variables
+## Environment Variables
 
 Create a `.env.local` file based on `.env.local.example`:
 
@@ -136,7 +136,7 @@ NEXT_PUBLIC_API_URL=http://localhost:3000/api
 API_SECRET_KEY=your-secret-key
 ```
 
-## 🚦 Getting Started
+## Getting Started
 
 1. **Install dependencies:**
    ```bash
@@ -157,12 +157,12 @@ API_SECRET_KEY=your-secret-key
 4. **Open browser:**
    Navigate to [http://localhost:3000](http://localhost:3000)
 
-## 📱 Current Pages
+## Current Pages
 
 - `/` - Home page
 - `/signup` - User registration
 
-## 🛠️ Common Development Patterns
+## Common Development Patterns
 
 ### Creating a New Page
 
@@ -199,24 +199,24 @@ export function Button({ children, variant = 'primary' }: ButtonProps) {
 }
 ```
 
-## 📦 Scripts
+## Scripts
 
 - `npm run dev` - Start development server
 - `npm run build` - Build for production
 - `npm run start` - Start production server
 - `npm run lint` - Run ESLint
 
-## 📖 Best Practices
+## Best Practices
 
-1. ✅ Use constants from `lib/constants.ts` instead of hardcoded values
-2. ✅ Use CSS variables for colors (e.g., `bg-primary` not `bg-[#2E7D32]`)
-3. ✅ Define TypeScript interfaces in `lib/types.ts`
-4. ✅ Use utility functions from `lib/utils.ts`
-5. ✅ Keep components small and reusable
-6. ✅ Use proper TypeScript typing
-7. ✅ Follow the established folder structure
+1. Use constants from `lib/constants.ts` instead of hardcoded values
+2. Use CSS variables for colors (e.g., `bg-primary` not `bg-[#2E7D32]`)
+3. Define TypeScript interfaces in `lib/types.ts`
+4. Use utility functions from `lib/utils.ts`
+5. Keep components small and reusable
+6. Use proper TypeScript typing
+7. Follow the established folder structure
 
-## 🔮 Next Steps
+## Next Steps
 
 - [ ] Create login page
 - [ ] Set up authentication system
@@ -226,6 +226,6 @@ export function Button({ children, variant = 'primary' }: ButtonProps) {
 - [ ] Integrate ML model API
 - [ ] Add user profile management
 
-## 📄 License
+## License
 
 Private - All rights reserved

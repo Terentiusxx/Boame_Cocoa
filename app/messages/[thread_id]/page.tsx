@@ -21,9 +21,19 @@ type Expert = {
   is_verified?: boolean
 }
 
-type ThreadResponse = {
-  thread: { thread_id: number; expert_id: number }
-  messages: Array<{ message_id: number; sender: 'user' | 'expert'; content: string; created_at: string }>
+type Consultation = {
+  consultation_id: number
+  user_id?: number
+  expert_id?: number
+  created_at?: string
+}
+
+type BackendMessage = {
+  message_id: number
+  consultation_id?: number
+  content: string
+  sender_id?: number
+  created_at: string
 }
 
 export default async function Page({
@@ -46,12 +56,39 @@ export default async function Page({
     )
   }
 
-  const threadPayload = unwrap(await serverApi<MaybeWrapped<ThreadResponse>>(`/messages/${threadId}`))
-  const expert = unwrap(await serverApi<MaybeWrapped<Expert>>(`/experts/${threadPayload.thread.expert_id}`))
+  async function safeApi<T>(path: string, init?: RequestInit): Promise<T | null> {
+    try {
+      return unwrap(await serverApi<MaybeWrapped<T>>(path, init))
+    } catch {
+      return null
+    }
+  }
+
+  const consultations = (await safeApi<Consultation[]>('/consultations')) ?? []
+  const consult = consultations.find((c) => Number(c.consultation_id) === threadId)
+
+  const expertId = Number(consult?.expert_id ?? 0)
+  const userId = Number(consult?.user_id ?? 0)
+
+  const expert =
+    (expertId > 0 ? await safeApi<Expert>(`/experts/${expertId}`) : null) ??
+    ({ expert_id: expertId || 0, first_name: 'Expert', last_name: '' } as Expert)
+
+  const backendMessages = (await safeApi<BackendMessage[]>(`/messages/consultation/${threadId}`)) ?? []
+  const initialMessages = backendMessages.map((m) => {
+    const senderId = Number(m.sender_id ?? 0)
+    const sender: 'user' | 'expert' = userId > 0 && senderId === userId ? 'user' : 'expert'
+    return {
+      message_id: Number(m.message_id),
+      sender,
+      content: String(m.content ?? ''),
+      created_at: String(m.created_at ?? new Date().toISOString()),
+    }
+  })
 
   return (
     <AuthGuard type="protected">
-      <MessageThreadClient threadId={threadId} expert={expert} initialMessages={threadPayload.messages ?? []} />
+      <MessageThreadClient threadId={threadId} expert={expert} initialMessages={initialMessages} />
     </AuthGuard>
   )
 }
