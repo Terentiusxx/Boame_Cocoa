@@ -57,13 +57,15 @@ export async function POST(req: Request) {
       dash?.user?.user_id ??
       dash?.user?.id
 
-    const scanId = typeof payload.scan_id === 'number' ? payload.scan_id : Number(payload.scan_id)
+    const rawScanId = typeof payload.scan_id === 'number' ? payload.scan_id : Number(payload.scan_id)
+    const hasScanId = Number.isFinite(rawScanId) && rawScanId > 0
+    const scanId = hasScanId ? rawScanId : undefined
 
-    if (!userId || !scanId) {
-      return NextResponse.json({ message: 'Missing user_id or scan_id' }, { status: 400 })
+    if (!userId) {
+      return NextResponse.json({ message: 'Missing user_id' }, { status: 400 })
     }
 
-    const priority = await inferPriorityFromScan(scanId)
+    const priority = scanId ? await inferPriorityFromScan(scanId) : 'Medium'
 
     const body = {
       user_id: Number(userId),

@@ -105,7 +105,6 @@ export interface Expert {
   last_name: string;
   email: string;
   telephone?: string;
-  password_hash: string;
   specialization?: string;
   organization?: string;
   bio?: string;
@@ -113,9 +112,10 @@ export interface Expert {
   license_id?: string;
   is_verified: boolean;
   rating?: number;
+  location: string;
+  photo?: string;
   created_at: string;
 }
-
 // ─── Consultations ────────────────────────────────────────────────────────────
 
 export type ConsultationPriority = 'low' | 'medium' | 'high';

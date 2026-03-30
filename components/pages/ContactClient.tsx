@@ -1,114 +1,209 @@
 'use client';
 
 import Link from 'next/link';
-import { FormEvent, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
-import { FiUser } from 'react-icons/fi';
+import { FiMapPin, FiStar } from 'react-icons/fi';
+import type { Expert } from '@/lib/types';
 
+type MaybeWrapped<T> = T | { data?: T };
 
+function unwrapData<T>(value: MaybeWrapped<T> | null): T | null {
+  if (!value) return null;
+  if (typeof value === 'object' && 'data' in value) {
+    return ((value as { data?: T }).data ?? null) as T | null;
+  }
+  return value as T;
+}
+
+function normalizeLocation(value: string) {
+  return value.trim().toLowerCase();
+}
+
+function locationMatchScore(userLocation: string, expertLocation?: string) {
+  const user = normalizeLocation(userLocation);
+  const expert = normalizeLocation(expertLocation ?? '');
+
+  if (!user || !expert) return 4;
+  if (user === expert) return 0;
+  if (expert.includes(user) || user.includes(expert)) return 1;
+
+  const userParts = user.split(/[,-]/).map((s) => s.trim()).filter(Boolean);
+  const expertParts = expert.split(/[,-]/).map((s) => s.trim()).filter(Boolean);
+  const overlap = userParts.some((part) => expertParts.includes(part));
+  if (overlap) return 2;
+
+  return 3;
+}
+
+function fullName(expert: Expert) {
+  return [expert.first_name, expert.mid_name, expert.last_name].filter(Boolean).join(' ').trim() || 'Unnamed Expert';
+}
+
+function formatRating(value?: number) {
+  if (typeof value !== 'number' || Number.isNaN(value)) return 'New';
+  return value.toFixed(1);
+}
 
 export default function ContactClient() {
   const searchParams = useSearchParams();
   const scanIdParam = searchParams.get('scan_id');
 
-  const [submitting, setSubmitting] = useState(false);
+  const [experts, setExperts] = useState<Expert[]>([]);
+  const [loadingExperts, setLoadingExperts] = useState(true);
+  const [expertsError, setExpertsError] = useState<string | null>(null);
 
-  const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
+  const [userLocation, setUserLocation] = useState('');
 
-    const form = e.currentTarget;
+  useEffect(() => {
+    let mounted = true;
 
-    const formData = new FormData(form);
-    const subject = String(formData.get('subject') ?? '').trim();
-    const description = String(formData.get('description') ?? '').trim();
+    const loadExperts = async () => {
+      setLoadingExperts(true);
+      setExpertsError(null);
 
-    const scan_id = scanIdParam ? Number(scanIdParam) : undefined;
+      try {
+        const [expertsRes, meRes, dashRes] = await Promise.all([
+          fetch('/api/experts', { method: 'GET' }),
+          fetch('/api/users/me', { method: 'GET' }),
+          fetch('/api/users/dashboard', { method: 'GET' }),
+        ]);
 
-    setSubmitting(true);
-    try {
-      const res = await fetch('/api/consultations', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          scan_id,
-          subject,
-          description,
-        }),
-      });
+        const expertsPayload = (await expertsRes.json().catch(() => null)) as MaybeWrapped<Expert[]> | null;
+        const expertsData = unwrapData<Expert[]>(expertsPayload);
 
-      if (!res.ok) {
-        alert('Failed to send message.');
-        return;
+        if (!expertsRes.ok) {
+          throw new Error('Failed to load experts. Please try again.');
+        }
+
+        const mePayload = (await meRes.json().catch(() => null)) as Record<string, unknown> | null;
+        const dashPayload = (await dashRes.json().catch(() => null)) as Record<string, unknown> | null;
+
+        const meData = unwrapData<Record<string, unknown>>(mePayload as MaybeWrapped<Record<string, unknown>>);
+        const dashData = unwrapData<Record<string, unknown>>(dashPayload as MaybeWrapped<Record<string, unknown>>);
+
+        const detectedLocation =
+          (meData?.location as string | undefined) ||
+          (meData?.district as string | undefined) ||
+          (meData?.region as string | undefined) ||
+          (meData?.city as string | undefined) ||
+          (dashData?.location as string | undefined) ||
+          (dashData?.district as string | undefined) ||
+          ((dashData?.user as Record<string, unknown> | undefined)?.location as string | undefined) ||
+          '';
+
+        if (!mounted) return;
+
+        const normalizedExperts = Array.isArray(expertsData) ? expertsData : [];
+        setExperts(normalizedExperts);
+        setUserLocation(detectedLocation);
+      } catch (error) {
+        if (!mounted) return;
+        setExpertsError(error instanceof Error ? error.message : 'Unable to load experts right now.');
+      } finally {
+        if (mounted) setLoadingExperts(false);
+      }
+    };
+
+    void loadExperts();
+
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
+  const rankedExperts = useMemo(() => {
+    return [...experts].sort((a, b) => {
+      const byLocation = locationMatchScore(userLocation, a.location) - locationMatchScore(userLocation, b.location);
+      if (byLocation !== 0) return byLocation;
+
+      if (Boolean(a.is_verified) !== Boolean(b.is_verified)) {
+        return a.is_verified ? -1 : 1;
       }
 
-      alert("Your message has been sent! We'll get back to you soon.");
-      form?.reset?.();
-    } finally {
-      setSubmitting(false);
-    }
+      const byRating = (b.rating ?? 0) - (a.rating ?? 0);
+      if (byRating !== 0) return byRating;
+
+      return fullName(a).localeCompare(fullName(b));
+    });
+  }, [experts, userLocation]);
+
+  const buildFormLink = (expertId: number) => {
+    const params = new URLSearchParams();
+    params.set('expert_id', String(expertId));
+    if (scanIdParam) params.set('scan_id', scanIdParam);
+    return `/contact/form?${params.toString()}`;
+  };
+
+  const renderExpertCards = (items: Expert[]) => {
+    return items.map((expert) => (
+      <Link
+        key={expert.expert_id}
+        href={buildFormLink(expert.expert_id)}
+        className="block rounded-2xl border border-gray-200 bg-white p-4 hover:border-green-300 transition-all"
+      >
+        <div className="flex items-start gap-3">
+          <img
+            src={expert.photo || '/img/homelogo.png'}
+            alt={fullName(expert)}
+            className="w-16 h-16 rounded-xl object-cover bg-gray-100 shrink-0"
+          />
+
+          <div className="min-w-0 flex-1">
+            <p className="text-base font-semibold text-brand-text-titles truncate">{fullName(expert)}</p>
+            <p className="text-sm text-brand-sub-text truncate mt-1">{expert.specialization || 'Cocoa Specialist'}</p>
+
+            <div className="mt-2 flex items-center gap-3 text-xs text-brand-sub-text">
+              <span className="inline-flex items-center gap-1">
+                <FiMapPin size={13} />
+                {expert.location || 'Unknown location'}
+              </span>
+              <span className="inline-flex items-center gap-1 text-amber-700">
+                <FiStar size={13} />
+                {formatRating(expert.rating)}
+              </span>
+            </div>
+
+            <span className="inline-block mt-3 text-xs font-semibold text-brand-buttons">Select and Continue</span>
+          </div>
+        </div>
+      </Link>
+    ));
   };
 
   return (
     <div className="max-w-mobile mx-auto min-h-screen bg-background relative shadow-mobile">
-       
-
       <div className="px-6 pb-6">
         <div className="flex items-center justify-between py-4 mb-6">
           <Link
             href={scanIdParam ? `/results/${scanIdParam}` : '/results/unknown'}
             className="bg-transparent border-none text-lg cursor-pointer p-2 rounded-full flex items-center justify-center w-9 h-9 hover:bg-black/5"
           >
-            <span className="text-xl">‹</span>
+            <span className="text-xl">&lt;</span>
           </Link>
-          <h1 className="text-xl font-semibold text-brand-text-titles">Contact Expert</h1>
+          <h1 className="text-xl font-semibold text-brand-text-titles">Choose Expert</h1>
           <div className="w-9"></div>
         </div>
 
         <div className="space-y-6">
-          <div className="text-center mb-8">
-            <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
-              <FiUser size={32} className="text-green-600" />
-            </div>
-            <h2 className="text-xl font-semibold text-brand-text-titles mb-2">Get Expert Help</h2>
-            <p className="text-brand-sub-text font-normal">
-              Our agricultural experts are here to help you identify and treat your cocoa diseases.
-            </p>
-          </div>
+          <div className="space-y-4">
+            {loadingExperts ? (
+              <div className="rounded-xl border border-gray-200 bg-white p-5 text-sm text-brand-sub-text">Loading experts...</div>
+            ) : null}
 
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div>
-              <label className="block text-sm font-medium text-brand-sub-titles font-semibold mb-2">Subject</label>
-              <input
-                name="subject"
-                type="text"
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
-                placeholder="What do you need help with?"
-                required
-              />
-            </div>
+            {expertsError ? (
+              <div className="rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">{expertsError}</div>
+            ) : null}
 
-            <div>
-              <label className="block text-sm font-medium text-brand-sub-titles font-semibold mb-2">Description</label>
-              <textarea
-                name="description"
-                rows={4}
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
-                placeholder="Please describe what you're seeing on your cocoa plants..."
-                required
-              ></textarea>
-            </div>
+            {!loadingExperts && !expertsError && rankedExperts.length === 0 ? (
+              <div className="rounded-xl border border-gray-200 bg-white p-5 text-sm text-brand-sub-text">
+                No experts available right now.
+              </div>
+            ) : null}
 
-            <button
-              type="submit"
-              disabled={submitting}
-              className="bg-brand-buttons text-white border-none px-6 py-4 rounded-brand text-base font-semibold cursor-pointer transition-all w-full text-center no-underline inline-block hover:opacity-90 mt-6 disabled:opacity-60"
-            >
-              {submitting ? 'Sending…' : 'Send Message'}
-            </button>
-          </form>
-
-          <div className="text-center mt-6">
-            <p className="text-sm text-brand-sub-text font-normal">We typically respond within 24 hours</p>
+            {!loadingExperts && !expertsError && rankedExperts.length > 0 ? (
+              <div className="space-y-3">{renderExpertCards(rankedExperts)}</div>
+            ) : null}
           </div>
         </div>
       </div>
