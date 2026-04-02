@@ -25,24 +25,33 @@ function urgencyToUi(urgencyLevel?: string) {
 }
 
 async function getUserId() {
-  const dash = await serverApi<any>('/users/dashboard')
-  return (
-    dash?.user_id ??
-    dash?.id ??
-    dash?.data?.user_id ??
-    dash?.data?.id ??
-    dash?.user?.user_id ??
-    dash?.user?.id ??
-    null
-  )
+  try {
+    const dash = await serverApi<any>('/users/dashboard')
+    return (
+      dash?.user_id ??
+      dash?.id ??
+      dash?.data?.user_id ??
+      dash?.data?.id ??
+      dash?.user?.user_id ??
+      dash?.user?.id ??
+      null
+    )
+  } catch {
+    return null
+  }
 }
 
 async function getRecentScans(limit: number): Promise<DiseaseData[]> {
   const userId = await getUserId()
   if (!userId) return []
 
-  const history = unwrap(await serverApi<MaybeWrapped<HistoryResponse>>(`/history/${userId}?limit=${limit}`))
-  const scans = history?.scans ?? []
+  let scans: HistoryResponse['scans'] = []
+  try {
+    const history = unwrap(await serverApi<MaybeWrapped<HistoryResponse>>(`/history/${userId}?limit=${limit}`))
+    scans = history?.scans ?? []
+  } catch {
+    return []
+  }
 
   return scans.map((scan) => {
     const u = urgencyToUi(scan.urgency_level)

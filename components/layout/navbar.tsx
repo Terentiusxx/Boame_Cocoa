@@ -4,11 +4,12 @@ import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import IconComponent from '@/components/IconComponent'
 import { ICON_MAP } from '@/lib/icons'
+import { FiUsers } from 'react-icons/fi'
 
 function isActive(pathname: string | null, href: string) {
   if (!pathname) return false
   if (href === '/home') return pathname === '/home'
-  if (href === '/messages') return pathname === '/messages' || pathname.startsWith('/messages/')
+  if (href === '/contact') return pathname === '/contact' || pathname.startsWith('/contact/')
   if (href === '/learn') return pathname === '/learn' || pathname.startsWith('/learn/')
   if (href === '/settings') return pathname === '/settings' || pathname.startsWith('/settings/')
   return pathname === href
@@ -55,8 +56,8 @@ export default function BottomNavigation() {
                 <IconComponent icon={ICON_MAP.home} size={24} />
               </NavIconButton>
 
-              <NavIconButton href="/messages" label="Messages" active={isActive(pathname, '/messages')}>
-                <IconComponent icon={ICON_MAP.messages} size={24} />
+              <NavIconButton href="/contact" label="Experts" active={isActive(pathname, '/contact')}>
+                <FiUsers size={24} />
               </NavIconButton>
             </div>
 

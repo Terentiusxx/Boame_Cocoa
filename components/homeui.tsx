@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import DiseaseCard from "@/components/DiseaseCard";
 import CheckCocoaCard from "@/components/CheckCocoaCard";
 import BottomNavigation from "@/components/layout/navbar";
@@ -89,69 +90,79 @@ export default function Home({
             Hey{firstName ? ` ${firstName}` : ''},
           </h1>
 
-          <Dialog
-            open={isDialogOpen}
-            onOpenChange={(open) => {
-              setIsDialogOpen(open)
-              if (open) {
-                void fetchNotifications()
-              }
-            }}
-          >
-            <DialogTrigger asChild>
-              <button
-                type="button"
-                aria-label="Open notifications"
-                className="relative flex h-11 w-11 items-center justify-center rounded-full bg-white text-brand-green-dark shadow-sm transition hover:bg-brand-green-light/20"
-              >
-                <IconComponent icon="bell" size={20} />
-                {notifications.length > 0 && (
-                  <span className="absolute right-1.5 top-1.5 h-2.5 w-2.5 rounded-full bg-red-500" />
-                )}
-              </button>
-            </DialogTrigger>
+          <div className="flex items-center gap-2">
+            <Link
+              href="/messages"
+              aria-label="Open messages"
+              className="flex h-11 w-11 items-center justify-center rounded-full bg-white text-brand-green-dark shadow-sm transition hover:bg-brand-green-light/20"
+            >
+              <IconComponent icon="messages" size={20} />
+            </Link>
 
-            <DialogContent>
-              <DialogHeader className="flex-row items-center justify-between space-y-0">
-                <DialogTitle>Notifications</DialogTitle>
-                <DialogClose
-                  aria-label="Close notifications"
-                  className="rounded-full p-1 text-gray-500 transition hover:bg-gray-100 hover:text-gray-700"
+            <Dialog
+              open={isDialogOpen}
+              onOpenChange={(open) => {
+                setIsDialogOpen(open)
+                if (open) {
+                  void fetchNotifications()
+                }
+              }}
+            >
+              <DialogTrigger asChild>
+                <button
+                  type="button"
+                  aria-label="Open notifications"
+                  className="relative flex h-11 w-11 items-center justify-center rounded-full bg-white text-brand-green-dark shadow-sm transition hover:bg-brand-green-light/20"
                 >
-                  <IconComponent icon="x" size={20} />
-                </DialogClose>
-              </DialogHeader>
+                  <IconComponent icon="bell" size={20} />
+                  {notifications.length > 0 && (
+                    <span className="absolute right-1.5 top-1.5 h-2.5 w-2.5 rounded-full bg-red-500" />
+                  )}
+                </button>
+              </DialogTrigger>
 
-              <div className="max-h-80 space-y-3 overflow-y-auto pr-1">
-                {isLoadingNotifications && (
-                  <p className="text-sm text-gray-500">Loading notifications...</p>
-                )}
-
-                {!isLoadingNotifications && notificationsError && (
-                  <p className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-600">{notificationsError}</p>
-                )}
-
-                {!isLoadingNotifications && !notificationsError && notifications.length === 0 && (
-                  <p className="text-sm text-gray-500">No notifications yet.</p>
-                )}
-
-                {!isLoadingNotifications && !notificationsError && notifications.map((notification) => (
-                  <div
-                    key={notification.id}
-                    className="rounded-xl border border-gray-100 bg-gray-50 px-3 py-2"
+              <DialogContent>
+                <DialogHeader className="flex-row items-center justify-between space-y-0">
+                  <DialogTitle>Notifications</DialogTitle>
+                  <DialogClose
+                    aria-label="Close notifications"
+                    className="rounded-full p-1 text-gray-500 transition hover:bg-gray-100 hover:text-gray-700"
                   >
-                    <p className="text-sm font-semibold text-brand-text-titles">{notification.title}</p>
-                    <p className="mt-1 text-sm text-gray-600">{notification.message}</p>
-                    {notification.createdAt && (
-                      <p className="mt-1 text-xs text-gray-400">
-                        {new Date(notification.createdAt).toLocaleString()}
-                      </p>
-                    )}
-                  </div>
-                ))}
-              </div>
-            </DialogContent>
-          </Dialog>
+                    <IconComponent icon="x" size={20} />
+                  </DialogClose>
+                </DialogHeader>
+
+                <div className="max-h-80 space-y-3 overflow-y-auto pr-1">
+                  {isLoadingNotifications && (
+                    <p className="text-sm text-gray-500">Loading notifications...</p>
+                  )}
+
+                  {!isLoadingNotifications && notificationsError && (
+                    <p className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-600">{notificationsError}</p>
+                  )}
+
+                  {!isLoadingNotifications && !notificationsError && notifications.length === 0 && (
+                    <p className="text-sm text-gray-500">No notifications yet.</p>
+                  )}
+
+                  {!isLoadingNotifications && !notificationsError && notifications.map((notification) => (
+                    <div
+                      key={notification.id}
+                      className="rounded-xl border border-gray-100 bg-gray-50 px-3 py-2"
+                    >
+                      <p className="text-sm font-semibold text-brand-text-titles">{notification.title}</p>
+                      <p className="mt-1 text-sm text-gray-600">{notification.message}</p>
+                      {notification.createdAt && (
+                        <p className="mt-1 text-xs text-gray-400">
+                          {new Date(notification.createdAt).toLocaleString()}
+                        </p>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </DialogContent>
+            </Dialog>
+          </div>
         </div>
         
         {/* Check Your Cocoa Card */}

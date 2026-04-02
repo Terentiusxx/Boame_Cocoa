@@ -18,12 +18,26 @@ export default function ScanClient() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const router = useRouter();
 
+  const stopCameraStream = () => {
+    const activeStream = streamRef.current;
+
+    if (videoRef.current && videoRef.current.srcObject) {
+      videoRef.current.pause();
+      videoRef.current.srcObject = null;
+    }
+
+    if (activeStream) {
+      activeStream.getTracks().forEach((track) => track.stop());
+    }
+
+    streamRef.current = null;
+    setStream(null);
+  };
+
   useEffect(() => {
     getCameraPermission();
     return () => {
-      const activeStream = streamRef.current;
-      if (activeStream) activeStream.getTracks().forEach((track) => track.stop());
-      streamRef.current = null;
+      stopCameraStream();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -36,7 +50,13 @@ export default function ScanClient() {
       }
 
       const existing = streamRef.current;
-      if (existing) existing.getTracks().forEach((track) => track.stop());
+      if (existing) {
+        existing.getTracks().forEach((track) => track.stop());
+      }
+      if (videoRef.current) {
+        videoRef.current.pause();
+        videoRef.current.srcObject = null;
+      }
       streamRef.current = null;
 
       const mediaStream = await navigator.mediaDevices.getUserMedia({
@@ -96,19 +116,13 @@ export default function ScanClient() {
         }
       }
 
-      const activeStream = streamRef.current;
-      if (activeStream) activeStream.getTracks().forEach((track) => track.stop());
-      streamRef.current = null;
-      setStream(null);
+      stopCameraStream();
 
       router.push('/processing');
     } catch (error) {
       console.error('Error taking picture:', error);
 
-      const activeStream = streamRef.current;
-      if (activeStream) activeStream.getTracks().forEach((track) => track.stop());
-      streamRef.current = null;
-      setStream(null);
+      stopCameraStream();
 
       router.push('/processing');
     } finally {
@@ -128,10 +142,7 @@ export default function ScanClient() {
     setIsCapturing(true);
 
     try {
-      const activeStream = streamRef.current;
-      if (activeStream) activeStream.getTracks().forEach((track) => track.stop());
-      streamRef.current = null;
-      setStream(null);
+      stopCameraStream();
 
       const reader = new FileReader();
       reader.onload = () => {
@@ -159,11 +170,8 @@ export default function ScanClient() {
   };
 
   const handleBack = () => {
-    const activeStream = streamRef.current;
-    if (activeStream) activeStream.getTracks().forEach((track) => track.stop());
-    streamRef.current = null;
-    setStream(null);
-    router.push('/home');
+    stopCameraStream();
+    router.replace('/home');
   };
 
   if (hasPermission === null) {
@@ -238,15 +246,17 @@ export default function ScanClient() {
         />
 
         <button
+          type="button"
           onClick={handleBack}
-          className="absolute top-4 left-4 z-10 bg-transparent border-none text-lg cursor-pointer p-2 rounded-full flex items-center justify-center w-9 h-9 hover:bg-black/5 bg-black bg-opacity-50 text-white"
+          className="absolute top-4 left-4 z-20 flex h-9 w-9 items-center justify-center rounded-full bg-black/50 text-white transition hover:bg-black/60"
         >
           <span className="text-xl">‹</span>
         </button>
 
         <button
+          type="button"
           onClick={handleBack}
-          className="absolute top-4 right-4 z-10 bg-black bg-opacity-50 text-white rounded-full w-8 h-8 flex items-center justify-center"
+          className="absolute top-4 right-4 z-20 flex h-9 w-9 items-center justify-center rounded-full bg-black/50 text-white transition hover:bg-black/60"
         >
           <FiX size={20} />
         </button>

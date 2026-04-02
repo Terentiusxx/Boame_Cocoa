@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { useEffect, useMemo, useState } from 'react';
-import { useSearchParams } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { FiMapPin, FiStar } from 'react-icons/fi';
 import type { Expert } from '@/lib/types';
 
@@ -46,6 +46,7 @@ function formatRating(value?: number) {
 }
 
 export default function ContactClient() {
+  const router = useRouter();
   const searchParams = useSearchParams();
   const scanIdParam = searchParams.get('scan_id');
 
@@ -135,6 +136,14 @@ export default function ContactClient() {
     return `/contact/form?${params.toString()}`;
   };
 
+  const handleBack = () => {
+    if (typeof window !== 'undefined' && window.history.length > 1) {
+      router.back();
+      return;
+    }
+    router.push('/home');
+  };
+
   const renderExpertCards = (items: Expert[]) => {
     return items.map((expert) => (
       <Link
@@ -175,12 +184,14 @@ export default function ContactClient() {
     <div className="max-w-mobile mx-auto min-h-screen bg-background relative shadow-mobile">
       <div className="px-6 pb-6">
         <div className="flex items-center justify-between py-4 mb-6">
-          <Link
-            href={scanIdParam ? `/results/${scanIdParam}` : '/results/unknown'}
+          <button
+            type="button"
+            onClick={handleBack}
+            aria-label="Go back"
             className="bg-transparent border-none text-lg cursor-pointer p-2 rounded-full flex items-center justify-center w-9 h-9 hover:bg-black/5"
           >
             <span className="text-xl">&lt;</span>
-          </Link>
+          </button>
           <h1 className="text-xl font-semibold text-brand-text-titles">Choose Expert</h1>
           <div className="w-9"></div>
         </div>

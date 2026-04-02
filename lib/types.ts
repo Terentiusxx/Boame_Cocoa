@@ -7,8 +7,14 @@ export interface User {
   last_name: string;
   email: string;
   telephone?: string;
-  password_hash: string;
   role?: string;
+  city?: string;
+  region?: string;
+  country?: string;
+  latitude?: number;
+  longitude?: number;
+  image_url?: string;
+  password_hash: string;
   created_at: string;
   last_login?: string;
 }
@@ -24,6 +30,13 @@ export interface SignUpData {
   last_name: string;
   email: string;
   telephone?: string;
+  role?: string;
+  latitude?: number;
+  longitude?: number;
+  city: string;
+  region: string;
+  country: string;
+  image_url: string;
   password: string;
 }
 
