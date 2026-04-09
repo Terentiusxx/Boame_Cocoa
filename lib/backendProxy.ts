@@ -7,7 +7,20 @@ const COOKIE_NAME = 'auth_token'
 
 function requireApiUrl() {
   if (!API_URL) throw new Error('Missing API url (NEXT_PUBLIC_API_URL)')
-  return API_URL.trim().replace(/\/+$/, '')
+  const trimmed = API_URL.trim().replace(/\/+$/, '')
+
+  try {
+    const url = new URL(trimmed)
+    const isNgrok = /(^|\.)ngrok(-free)?\.app$/i.test(url.hostname)
+    if (isNgrok && url.protocol === 'http:') {
+      url.protocol = 'https:'
+      return url.toString().replace(/\/+$/, '')
+    }
+  } catch {
+    // ignore invalid URL; fallback to trimmed
+  }
+
+  return trimmed
 }
 
 async function getToken() {
@@ -55,6 +68,7 @@ export async function backendFetch(path: string, init?: RequestInit) {
 
   const headers = new Headers(init?.headers)
 
+  // Only set Content-Type for JSON string bodies if not already set
   if (!headers.has('Content-Type') && init?.body && typeof init.body === 'string') {
     headers.set('Content-Type', 'application/json')
   }

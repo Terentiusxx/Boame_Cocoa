@@ -147,7 +147,6 @@ export default function ProcessingClient() {
       if (inflightKey) sessionStorage.setItem(inflightKey, '1');
 
       try {
-        // Predict using AI endpoint (multipart/form-data with `file`)
         const blob = await dataUrlToBlob(imageDataUrl);
         const form = new FormData();
         form.append('file', blob, 'scan.jpg');

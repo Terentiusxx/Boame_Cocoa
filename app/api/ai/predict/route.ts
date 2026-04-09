@@ -49,16 +49,22 @@ export async function POST(req: Request) {
 
     const qs = params.toString()
     const path = `/ai/predict${qs ? `?${qs}` : ''}`
+    const requestContentType = req.headers.get('content-type')
+    const body = await req.arrayBuffer()
 
-    const formData = await req.formData()
+    const headers = new Headers()
+    if (requestContentType) {
+      headers.set('content-type', requestContentType)
+    }
 
     const res = await backendFetch(path, {
       method: 'POST',
-      body: formData,
+      headers,
+      body,
     })
 
-    const contentType = res.headers.get('content-type') || ''
-    if (contentType.includes('application/json')) {
+    const responseContentType = res.headers.get('content-type') || ''
+    if (responseContentType.includes('application/json')) {
       const json = await res.json().catch(() => null)
 
       // Best-effort: save scan to history when prediction returns a scan id.

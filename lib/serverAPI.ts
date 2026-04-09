@@ -6,7 +6,20 @@ const COOKIE_NAME = 'auth_token'
 
 function requireApiUrl() {
   if (!API_URL) throw new Error('Missing API url')
-  return API_URL.trim().replace(/\/+$/, '')
+  const trimmed = API_URL.trim().replace(/\/+$/, '')
+
+  try {
+    const url = new URL(trimmed)
+    const isNgrok = /(^|\.)ngrok(-free)?\.app$/i.test(url.hostname)
+    if (isNgrok && url.protocol === 'http:') {
+      url.protocol = 'https:'
+      return url.toString().replace(/\/+$/, '')
+    }
+  } catch {
+    // ignore invalid URL; fallback to trimmed
+  }
+
+  return trimmed
 }
 
 function assertValidPath(path: string) {
