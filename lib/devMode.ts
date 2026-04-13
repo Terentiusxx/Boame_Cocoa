@@ -1,57 +1,30 @@
 /**
- * Development mode utilities for UI design without backend
+ * devMode.ts
+ * ─────────────────────────────────────────────────────────────
+ * Development mode mock data and response generator.
  * Enable by setting NEXT_PUBLIC_DEV_MODE=true in .env.local
+ *
+ * When active, ALL backend API calls are intercepted and served
+ * from this file — no real backend needed for UI development.
+ *
+ * HOW TO ADD A NEW ENDPOINT:
+ * 1. Add mock data above if needed.
+ * 2. Add a new `if` block in getMockResponse() matching your path + method.
+ * 3. Return { status, data } for success or { status, error } for failure.
  */
 
-export const isDev = () => process.env.NEXT_PUBLIC_DEV_MODE === 'true'
+// ─── Dev Mode Flag ────────────────────────────────────────────────────────────
 
-// ────────────────────────────────────────────────────────────────────────────
-// Mock Data
-// ────────────────────────────────────────────────────────────────────────────
+export const isDev = () => process.env.NEXT_PUBLIC_DEV_MODE === 'true';
 
-export const mockDiseases = [
-  {
-    disease_id: 1,
-    name: 'Black Pod Disease',
-    description: 'Fungal disease affecting cocoa pods',
-    urgency_level: 'high',
-    image_url: '/img/blackpod.png',
-    icon_name: 'shield-alert',
-    treatments: [{ name: 'Remove infected pods' }, { name: 'Apply fungicide' }],
-  },
-  {
-    disease_id: 2,
-    name: 'CSSVD',
-    description: 'Cocoa Swollen Shoot Virus Disease',
-    urgency_level: 'high',
-    image_url: '/img/ccsvd.png',
-    icon_name: 'virus',
-    treatments: [{ name: 'Remove infected trees' }, { name: 'Control vectors' }],
-  },
-  {
-    disease_id: 3,
-    name: 'Vascular Streak Dieback',
-    description: 'Disease affecting vascular tissue causing dieback',
-    urgency_level: 'medium',
-    image_url: '/img/vascularstreak.png',
-    icon_name: 'leaf',
-    treatments: [{ name: 'Prune affected branches' }, { name: 'Improve sanitation' }],
-  },
-  {
-    disease_id: 4,
-    name: "Wasn't able to detect issue",
-    description: 'No disease detected',
-    urgency_level: 'low',
-    image_url: '/img/unknown.png',
-    icon_name: 'help-circle',
-    treatments: [{ name: 'Try a clearer photo' }],
-  },
-]
+// ─── Mock Data ────────────────────────────────────────────────────────────────
+// Keep these at module level so state mutations during a session persist
+// (e.g. login updates mockUser.email). In real production these don't run.
 
 export const mockCredentials = {
   email: 'dev@example.com',
   password: 'password123',
-}
+};
 
 export const mockUser = {
   user_id: 1,
@@ -62,9 +35,66 @@ export const mockUser = {
   telephone: '+1234567890',
   password_hash: 'dev-mode',
   role: 'user',
+  city: 'Accra',
+  region: 'Greater Accra',
+  country: 'Ghana',
   created_at: new Date().toISOString(),
   last_login: new Date().toISOString(),
-}
+};
+
+export const mockDiseases = [
+  {
+    disease_id: 1,
+    name: 'Black Pod Disease',
+    description: 'A fungal disease caused by Phytophthora species that affects cocoa pods, turning them black.',
+    urgency_level: 'high',
+    image_url: '/img/blackpod.png',
+    icon_name: 'shield-alert',
+    treatments: [
+      { name: 'Remove and destroy infected pods immediately' },
+      { name: 'Apply copper-based fungicide to affected areas' },
+      { name: 'Improve farm sanitation and drainage' },
+    ],
+  },
+  {
+    disease_id: 2,
+    name: 'CSSVD',
+    description: 'Cocoa Swollen Shoot Virus Disease — spread by mealybugs, causes swelling of shoots and roots.',
+    urgency_level: 'high',
+    image_url: '/img/ccsvd.png',
+    icon_name: 'shield-alert',
+    treatments: [
+      { name: 'Remove and burn infected trees' },
+      { name: 'Control mealybug vector populations' },
+      { name: 'Replant with certified virus-free seedlings' },
+    ],
+  },
+  {
+    disease_id: 3,
+    name: 'Vascular Streak Dieback',
+    description: 'A fungal disease affecting vascular tissue, causing shoot dieback from the tips downward.',
+    urgency_level: 'medium',
+    image_url: '/img/vascularstreak.png',
+    icon_name: 'leaf',
+    treatments: [
+      { name: 'Prune affected branches 30 cm below visible symptoms' },
+      { name: 'Sterilise pruning tools between cuts' },
+      { name: 'Improve shade and ventilation' },
+    ],
+  },
+  {
+    disease_id: 4,
+    name: "Wasn't able to detect issue",
+    description: 'No recognisable disease was detected in the image. The plant may be healthy or the image quality may be insufficient.',
+    urgency_level: 'low',
+    image_url: '/img/unknown.png',
+    icon_name: 'help-circle',
+    treatments: [
+      { name: 'Try a clearer, closer photo in good lighting' },
+      { name: 'Contact an expert for manual assessment' },
+    ],
+  },
+];
 
 export const mockScans = [
   {
@@ -74,7 +104,6 @@ export const mockScans = [
     created_at: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(),
     disease_id: 1,
     confidence_score: 0.92,
-    notes: 'Black pod disease detected on lower portion',
   },
   {
     scan_id: 2,
@@ -83,21 +112,8 @@ export const mockScans = [
     created_at: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000).toISOString(),
     disease_id: 4,
     confidence_score: 0.95,
-    notes: 'Healthy pod - no issues',
   },
-]
-
-export const mockConsultations = [
-  {
-    consultation_id: 1,
-    user_id: 1,
-    scan_id: 1,
-    expert_id: 101,
-    status: 'completed',
-    recommendation: 'Apply fungicide treatment',
-    created_at: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(),
-  },
-]
+];
 
 export const mockExperts = [
   {
@@ -112,6 +128,8 @@ export const mockExperts = [
     years_experienced: 8,
     is_verified: true,
     rating: 4.8,
+    location: 'Accra, Greater Accra',
+    photo: null,
     created_at: new Date(Date.now() - 250 * 24 * 60 * 60 * 1000).toISOString(),
   },
   {
@@ -126,28 +144,26 @@ export const mockExperts = [
     years_experienced: 5,
     is_verified: true,
     rating: 4.6,
+    location: 'Kumasi, Ashanti',
+    photo: null,
     created_at: new Date(Date.now() - 180 * 24 * 60 * 60 * 1000).toISOString(),
   },
-]
+];
 
-type MockThread = {
-  thread_id: number
-  expert_id: number
-  user_id: number
-  last_message: string
-  updated_at: string
-  unread_count: number
-}
+export const mockConsultations = [
+  {
+    consultation_id: 1,
+    user_id: 1,
+    scan_id: 1,
+    expert_id: 101,
+    status: 'completed',
+    recommendation: 'Apply fungicide treatment',
+    created_at: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(),
+  },
+];
 
-type MockMessage = {
-  message_id: number
-  thread_id: number
-  sender: 'user' | 'expert'
-  content: string
-  created_at: string
-}
-
-export const mockThreads: MockThread[] = [
+// Message threads (conversations between user and expert)
+export const mockThreads = [
   {
     thread_id: 1,
     expert_id: 101,
@@ -164,31 +180,31 @@ export const mockThreads: MockThread[] = [
     updated_at: new Date(Date.now() - 26 * 60 * 60 * 1000).toISOString(),
     unread_count: 0,
   },
-]
+];
 
-export const mockMessages: MockMessage[] = [
+export const mockMessages = [
   {
     message_id: 1,
     thread_id: 1,
-    sender: 'user',
+    sender: 'user' as const,
     content: 'Hi, I think my pod has black spots. What should I do?',
     created_at: new Date(Date.now() - 5 * 60 * 60 * 1000).toISOString(),
   },
   {
     message_id: 2,
     thread_id: 1,
-    sender: 'expert',
+    sender: 'expert' as const,
     content: 'Send a clear photo of the pod and leaf.',
     created_at: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(),
   },
   {
     message_id: 3,
     thread_id: 2,
-    sender: 'expert',
+    sender: 'expert' as const,
     content: 'How often do you apply compost?',
     created_at: new Date(Date.now() - 26 * 60 * 60 * 1000).toISOString(),
   },
-]
+];
 
 export const mockNotifications = [
   {
@@ -205,104 +221,83 @@ export const mockNotifications = [
     is_read: true,
     created_at: new Date(Date.now() - 20 * 60 * 60 * 1000).toISOString(),
   },
-]
+];
 
-function makeDevJwt(payload: Record<string, unknown>) {
-  // Not a real signature; only for local dev to satisfy code paths that decode JWT payload.
-  const header = Buffer.from(JSON.stringify({ alg: 'none', typ: 'JWT' })).toString('base64url')
-  const body = Buffer.from(JSON.stringify(payload)).toString('base64url')
-  return `${header}.${body}.dev`
+// ─── Internal Helpers ─────────────────────────────────────────────────────────
+
+/**
+ * Generate a minimal JWT-like token for dev mode.
+ * NOT cryptographically signed — only used to satisfy code paths that decode
+ * the JWT payload (e.g. to extract user_id). Never use in production.
+ */
+function makeDevJwt(payload: Record<string, unknown>): string {
+  const header = Buffer.from(JSON.stringify({ alg: 'none', typ: 'JWT' })).toString('base64url');
+  const body = Buffer.from(JSON.stringify(payload)).toString('base64url');
+  return `${header}.${body}.dev`;
 }
 
-function normalizePath(inputPath: string) {
-  const [pathname] = inputPath.split('?')
-  const trimmed = (pathname || '').trim()
-  const withoutTrailing = trimmed.length > 1 ? trimmed.replace(/\/+$/, '') : trimmed
-  return withoutTrailing || '/'
+/**
+ * Strip query strings and trailing slashes from a path for consistent matching.
+ * Example: '/history/1?limit=3' → '/history/1'
+ */
+function normalizePath(input: string): string {
+  const [pathname] = input.split('?');
+  const trimmed = (pathname ?? '').trim();
+  return trimmed.length > 1 ? trimmed.replace(/\/+$/, '') : trimmed || '/';
 }
 
-// ────────────────────────────────────────────────────────────────────────────
-// Mock Response Generator
-// ────────────────────────────────────────────────────────────────────────────
+// ─── Mock Response Type ───────────────────────────────────────────────────────
 
 export interface MockResponse {
   status: number;
-  data?: any;
+  data?: unknown;
   error?: string;
 }
 
-export function getMockResponse(path: string, method: string = 'GET', body?: any): MockResponse | null {
-  const normalizedPath = normalizePath(path)
-  const verb = (method || 'GET').toUpperCase()
+// ─── Mock Response Generator ──────────────────────────────────────────────────
 
-  // Auth endpoints
-  if (normalizedPath === '/auth/login' && verb === 'POST') {
-    const { email, password } = body || {};
-    
-    // Dev mode: accept credentials (and remember them if provided)
-    if (typeof email === 'string' && typeof password === 'string' && email && password) {
-      mockCredentials.email = email
-      mockCredentials.password = password
-      ;(mockUser as any).email = email
-      const token = makeDevJwt({ user_id: mockUser.user_id, email: mockUser.email })
-      return { 
-        status: 200, 
-        data: { 
-          token,
-          user: mockUser,
-        } 
-      };
-    } else {
-      return { 
-        status: 401, 
-        error: 'Invalid email or password' 
-      };
+/**
+ * Match a path + method to a mock response.
+ * Returns null if no mock exists for the given route (caller handles 404).
+ *
+ * ADDING A NEW MOCK:
+ * Add a new if-block below following the same pattern.
+ * Use regex for dynamic path segments: /^\/resource\/\d+$/.test(path)
+ */
+export function getMockResponse(
+  path: string,
+  method = 'GET',
+  body?: unknown
+): MockResponse | null {
+  const p = normalizePath(path);
+  const v = method.toUpperCase();
+
+  // ── Auth ──────────────────────────────────────────────────────────────────
+
+  if (p === '/auth/login' && v === 'POST') {
+    const { email, password } = (body as Record<string, string>) ?? {};
+    if (typeof email === 'string' && email && typeof password === 'string' && password) {
+      // Accept any non-empty credentials in dev mode
+      mockCredentials.email = email;
+      mockCredentials.password = password;
+      (mockUser as Record<string, unknown>).email = email;
+      const token = makeDevJwt({ user_id: mockUser.user_id, email });
+      return { status: 200, data: { token, user: mockUser } };
     }
+    return { status: 401, error: 'Invalid email or password' };
   }
 
-  if (normalizedPath === '/auth/logout' && verb === 'POST') {
+  if (p === '/auth/logout' && v === 'POST') {
     return { status: 200, data: { message: 'Logged out' } };
   }
 
-  // Users endpoints
-  if (normalizedPath === '/users/me' && verb === 'GET') {
+  // ── Users ─────────────────────────────────────────────────────────────────
+
+  if (p === '/users/me' && v === 'GET') {
     return { status: 200, data: mockUser };
   }
 
-  if (normalizedPath === '/users' && verb === 'POST') {
-    if (body && typeof body === 'object') {
-      const b: any = body
-      if (typeof b.first_name === 'string') (mockUser as any).first_name = b.first_name
-      if (typeof b.mid_name === 'string') (mockUser as any).mid_name = b.mid_name
-      if (typeof b.last_name === 'string') (mockUser as any).last_name = b.last_name
-      if (typeof b.email === 'string') {
-        ;(mockUser as any).email = b.email
-        mockCredentials.email = b.email
-      }
-      if (typeof b.telephone === 'string') (mockUser as any).telephone = b.telephone
-      if (typeof b.password === 'string') mockCredentials.password = b.password
-    }
-    return { status: 201, data: mockUser }
-  }
-
-  if (/^\/users\/\d+$/.test(normalizedPath) && (verb === 'GET' || verb === 'PUT' || verb === 'DELETE')) {
-    const id = parseInt(normalizedPath.split('/').pop() || '0')
-    if (id !== mockUser.user_id) return { status: 404, error: 'Not found' }
-
-    if (verb === 'DELETE') {
-      return { status: 204, data: null }
-    }
-
-    if (verb === 'PUT') {
-      // Shallow merge, preserve required fields
-      const updated = { ...mockUser, ...(body && typeof body === 'object' ? body : {}) }
-      return { status: 200, data: updated }
-    }
-
-    return { status: 200, data: mockUser }
-  }
-
-  if (normalizedPath === '/users/dashboard' && verb === 'GET') {
+  if (p === '/users/dashboard' && v === 'GET') {
     return {
       status: 200,
       data: {
@@ -315,41 +310,53 @@ export function getMockResponse(path: string, method: string = 'GET', body?: any
     };
   }
 
-  // Diseases endpoints
-  if (normalizedPath === '/diseases' && verb === 'GET') {
+  if (p === '/users' && v === 'POST') {
+    // Signup — shallow-merge new fields into mockUser so login works after
+    const b = (body ?? {}) as Record<string, unknown>;
+    if (typeof b.first_name === 'string') (mockUser as Record<string, unknown>).first_name = b.first_name;
+    if (typeof b.last_name  === 'string') (mockUser as Record<string, unknown>).last_name  = b.last_name;
+    if (typeof b.email      === 'string') {
+      (mockUser as Record<string, unknown>).email = b.email;
+      mockCredentials.email = b.email;
+    }
+    if (typeof b.password === 'string') mockCredentials.password = b.password;
+    return { status: 201, data: mockUser };
+  }
+
+  if (/^\/users\/\d+$/.test(p)) {
+    const id = parseInt(p.split('/').pop() ?? '0');
+    if (id !== mockUser.user_id) return { status: 404, error: 'User not found' };
+    if (v === 'DELETE') return { status: 204, data: null };
+    if (v === 'PUT') return { status: 200, data: { ...mockUser, ...(body ?? {}) } };
+    return { status: 200, data: mockUser };
+  }
+
+  // ── Diseases ──────────────────────────────────────────────────────────────
+
+  if (p === '/diseases' && v === 'GET') {
     return { status: 200, data: mockDiseases };
   }
 
-  if (normalizedPath === '/diseases' && verb === 'POST') {
-    // Minimal create; echo back payload with a new id
-    const nextId = Math.max(...mockDiseases.map((d) => d.disease_id)) + 1
-    const created = {
-      disease_id: nextId,
-      ...(body && typeof body === 'object' ? (body as any) : {}),
-    }
-    mockDiseases.push(created as any)
-    return { status: 201, data: created }
-  }
-
-  if (normalizedPath.match(/^\/diseases\/\d+$/) && verb === 'GET') {
-    const id = parseInt(normalizedPath.split('/').pop() || '0');
+  if (/^\/diseases\/\d+$/.test(p) && v === 'GET') {
+    const id = parseInt(p.split('/').pop() ?? '0');
     const disease = mockDiseases.find((d) => d.disease_id === id);
-    return disease ? { status: 200, data: disease } : { status: 404, error: 'Not found' };
+    return disease ? { status: 200, data: disease } : { status: 404, error: 'Disease not found' };
   }
 
-  // Scans endpoints
-  if (normalizedPath === '/scans' && verb === 'GET') {
+  // ── Scans ─────────────────────────────────────────────────────────────────
+
+  if (p === '/scans' && v === 'GET') {
     return { status: 200, data: mockScans };
   }
 
-  if (normalizedPath.match(/^\/scans\/\d+$/) && verb === 'GET') {
-    const id = parseInt(normalizedPath.split('/').pop() || '0');
+  if (/^\/scans\/\d+$/.test(p) && v === 'GET') {
+    const id = parseInt(p.split('/').pop() ?? '0');
     const scan = mockScans.find((s) => s.scan_id === id);
-    return scan ? { status: 200, data: scan } : { status: 404, error: 'Not found' };
+    return scan ? { status: 200, data: scan } : { status: 404, error: 'Scan not found' };
   }
 
-  if (normalizedPath === '/scans' && verb === 'POST') {
-    const newScan = {
+  if (p === '/scans' && v === 'POST') {
+    const next = {
       scan_id: mockScans.length + 1,
       user_id: mockUser.user_id,
       image_url: '/img/scan-leaf.png',
@@ -357,12 +364,13 @@ export function getMockResponse(path: string, method: string = 'GET', body?: any
       disease_id: null,
       confidence_score: null,
     };
-    mockScans.push(newScan as any)
-    return { status: 201, data: newScan };
+    mockScans.push(next as unknown as typeof mockScans[0]);
+    return { status: 201, data: next };
   }
 
-  // AI Predict endpoints
-  if (normalizedPath.startsWith('/ai/predict') && verb === 'POST') {
+  // ── AI Prediction ─────────────────────────────────────────────────────────
+
+  if (p.startsWith('/ai/predict') && v === 'POST') {
     return {
       status: 200,
       data: {
@@ -375,7 +383,7 @@ export function getMockResponse(path: string, method: string = 'GET', body?: any
     };
   }
 
-  if (normalizedPath === '/ai/voice-diagnose' && verb === 'POST') {
+  if (p === '/ai/voice-diagnose' && v === 'POST') {
     return {
       status: 200,
       data: {
@@ -386,109 +394,107 @@ export function getMockResponse(path: string, method: string = 'GET', body?: any
     };
   }
 
-  // Consultations endpoints
-  if (normalizedPath === '/consultations' && verb === 'GET') {
-    return { status: 200, data: mockConsultations };
-  }
+  // ── History ───────────────────────────────────────────────────────────────
 
-  if (normalizedPath === '/consultations' && verb === 'POST') {
-    const newConsult = {
-      consultation_id: mockConsultations.length + 1,
-      user_id: mockUser.user_id,
-      scan_id: 1,
-      status: 'pending',
-      created_at: new Date().toISOString(),
-    };
-    return { status: 201, data: newConsult };
-  }
-
-  // History endpoints
-  if (normalizedPath === '/history' && verb === 'GET') {
-    // legacy convenience
-    return { status: 200, data: { total_scans: mockScans.length, scans: [] } };
-  }
-
-  if (/^\/history\/\d+$/.test(normalizedPath) && verb === 'GET') {
-    const userId = parseInt(normalizedPath.split('/').pop() || '0')
-    if (userId !== mockUser.user_id) {
-      return { status: 404, error: 'Not found' }
-    }
+  if (/^\/history\/\d+$/.test(p) && v === 'GET') {
+    const userId = parseInt(p.split('/').pop() ?? '0');
+    if (userId !== mockUser.user_id) return { status: 404, error: 'User not found' };
 
     const scans = mockScans.map((scan) => {
-      const disease = mockDiseases.find((d) => d.disease_id === scan.disease_id)
-      const urgency_level = (disease?.urgency_level || 'low') as string
+      const disease = mockDiseases.find((d) => d.disease_id === scan.disease_id);
+      const urgency_level = disease?.urgency_level ?? 'low';
       return {
         scan_id: scan.scan_id,
-        disease_name: disease?.name || 'Unknown',
+        disease_name: disease?.name ?? 'Unknown',
         urgency_level,
         image_preview_url: scan.image_url,
         created_at: scan.created_at,
-        status_color: urgency_level === 'high' ? '#DC2626' : urgency_level === 'medium' ? '#F59E0B' : '#16A34A',
-      }
-    })
+        status_color:
+          urgency_level === 'high'   ? '#DC2626' :
+          urgency_level === 'medium' ? '#F59E0B' : '#16A34A',
+      };
+    });
 
-    return { status: 200, data: { total_scans: mockScans.length, scans } }
+    return { status: 200, data: { total_scans: mockScans.length, scans } };
   }
 
-  if (/^\/history\/\d+\/\d+$/.test(normalizedPath) && verb === 'POST') {
-    // Accept and pretend it saved to history
-    return { status: 201, data: { ok: true } }
+  // Save scan to history (POST /history/:userId/:scanId)
+  if (/^\/history\/\d+\/\d+$/.test(p) && v === 'POST') {
+    return { status: 201, data: { ok: true } };
   }
 
-  // Experts endpoints
-  if (normalizedPath === '/experts' && verb === 'GET') {
-    return { status: 200, data: mockExperts }
+  // ── Experts ───────────────────────────────────────────────────────────────
+
+  if (p === '/experts' && v === 'GET') {
+    return { status: 200, data: mockExperts };
   }
 
-  if (/^\/experts\/\d+$/.test(normalizedPath) && verb === 'GET') {
-    const id = parseInt(normalizedPath.split('/').pop() || '0')
-    const expert = mockExperts.find((e) => e.expert_id === id)
-    return expert ? { status: 200, data: expert } : { status: 404, error: 'Not found' }
+  if (/^\/experts\/\d+$/.test(p) && v === 'GET') {
+    const id = parseInt(p.split('/').pop() ?? '0');
+    const expert = mockExperts.find((e) => e.expert_id === id);
+    return expert ? { status: 200, data: expert } : { status: 404, error: 'Expert not found' };
   }
 
-  // Messages endpoints
-  if (normalizedPath === '/messages' && verb === 'GET') {
-    return { status: 200, data: mockThreads }
+  // ── Consultations ─────────────────────────────────────────────────────────
+
+  if (p === '/consultations' && v === 'GET') {
+    return { status: 200, data: mockConsultations };
   }
 
-  if (/^\/messages\/consultation\/\d+$/.test(normalizedPath) && verb === 'GET') {
-    const id = parseInt(normalizedPath.split('/').pop() || '0')
-    // In dev mode we treat consultation_id as thread_id for convenience
+  if (p === '/consultations' && v === 'POST') {
+    const next = {
+      consultation_id: mockConsultations.length + 1,
+      user_id: mockUser.user_id,
+      status: 'pending',
+      created_at: new Date().toISOString(),
+      ...(body ?? {}),
+    };
+    mockConsultations.push(next as typeof mockConsultations[0]);
+    return { status: 201, data: next };
+  }
+
+  // ── Messages ──────────────────────────────────────────────────────────────
+
+  // List all threads for the current user
+  if (p === '/messages' && v === 'GET') {
+    return { status: 200, data: mockThreads };
+  }
+
+  // Get messages in a specific thread
+  if (/^\/messages\/\d+$/.test(p) && v === 'GET') {
+    const id = parseInt(p.split('/').pop() ?? '0');
+    const thread = mockThreads.find((t) => t.thread_id === id);
+    if (!thread) return { status: 404, error: 'Thread not found' };
+    const messages = mockMessages
+      .filter((m) => m.thread_id === id)
+      .sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
+    return { status: 200, data: { thread, messages } };
+  }
+
+  // Messages for a consultation (treated as thread in dev)
+  if (/^\/messages\/consultation\/\d+$/.test(p) && v === 'GET') {
+    const id = parseInt(p.split('/').pop() ?? '0');
     const messages = mockMessages
       .filter((m) => m.thread_id === id)
       .map((m) => ({
         message_id: m.message_id,
         consultation_id: id,
         content: m.content,
-        sender_id: m.sender === 'user' ? mockUser.user_id : (mockThreads.find((t) => t.thread_id === id)?.expert_id ?? 0),
+        sender_id: m.sender === 'user'
+          ? mockUser.user_id
+          : (mockThreads.find((t) => t.thread_id === id)?.expert_id ?? 0),
         created_at: m.created_at,
       }))
-      .sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime())
-    return { status: 200, data: messages }
+      .sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
+    return { status: 200, data: messages };
   }
 
-  if (/^\/messages\/consultation\/\d+\/unread-count$/.test(normalizedPath) && verb === 'GET') {
-    const parts = normalizedPath.split('/')
-    const id = parseInt(parts[parts.length - 2] || '0')
-    const thread = mockThreads.find((t) => t.thread_id === id)
-    return { status: 200, data: { unread_count: thread?.unread_count ?? 0 } }
+  // ── Notifications ─────────────────────────────────────────────────────────
+
+  if (p === '/notifications' && v === 'GET') {
+    return { status: 200, data: mockNotifications };
   }
 
-  if (/^\/messages\/\d+$/.test(normalizedPath) && verb === 'GET') {
-    const id = parseInt(normalizedPath.split('/').pop() || '0')
-    const thread = mockThreads.find((t) => t.thread_id === id)
-    if (!thread) return { status: 404, error: 'Not found' }
-    const messages = mockMessages
-      .filter((m) => m.thread_id === id)
-      .sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime())
-    return { status: 200, data: { thread, messages } }
-  }
-
-  // Notifications endpoints
-  if (normalizedPath === '/notifications' && verb === 'GET') {
-    return { status: 200, data: mockNotifications }
-  }
-
-  // Default: return null to indicate no mock for this endpoint
+  // No mock matched — return null so caller can return 404
   return null;
 }

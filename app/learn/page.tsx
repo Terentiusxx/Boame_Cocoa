@@ -1,7 +1,11 @@
-import Link from "next/link";
-import { serverApi } from "@/lib/serverAPI";
-
-type WithData<T> = { data: T };
+/**
+ * app/learn/page.tsx
+ * Server Component — fetches diseases from the backend and renders the
+ * Learn page with disease cards and topic tiles.
+ */
+import Link from 'next/link';
+import { serverApi } from '@/lib/serverAPI';
+import AuthGuard from '@/components/AuthGuard';
 
 type DiseaseListItem = {
   disease_id: number;
@@ -9,235 +13,151 @@ type DiseaseListItem = {
   urgency_level?: string;
 };
 
-type LearnDiseaseCard = {
-  key: string;
-  diseaseId: number;
-  name: string;
+// Static copy so the page works even if the backend returns nothing
+const DISEASE_COPY: Record<string, {
+  slug: string;
   description: string;
-  urgencyLabel: "High Urgency" | "Medium Urgency";
-  urgencyClass: string;
+  fallbackUrgency: string;
   imageUrl: string;
+  aliases: string[];
+}> = {
+  black_pod:    { slug: 'black_pod',    description: 'Fungal infection causing pod rot and dark lesions spreading rapidly.', fallbackUrgency: 'high',   imageUrl: '/img/blackpod_d.png',  aliases: ['black pod', 'blackpod'] },
+  ccsv:         { slug: 'ccsv',         description: 'Virus causing leaf redness, yellow streaks, and stem swelling.',       fallbackUrgency: 'high',   imageUrl: '/img/ccsv_d.png',      aliases: ['ccsv', 'cssvd', 'swollen shoot'] },
+  witches_broom:{ slug: 'witches_broom',description: 'Abnormal broom-like shoot clusters forming at branch tips.',           fallbackUrgency: 'medium', imageUrl: '/img/witches_d.png',   aliases: ['witches broom', "witches' broom"] },
+  frosty_pod:   { slug: 'frosty_pod',   description: 'White fungal growth covering pods resembling frost or snow.',          fallbackUrgency: 'medium', imageUrl: '/img/frosty_d.png',    aliases: ['frosty pod', 'frosty pod rot'] },
+  vsd:          { slug: 'vsd',          description: 'Yellowing leaf edges and brown streaks along the vascular tissue.',    fallbackUrgency: 'medium', imageUrl: '/img/vsd_d.png',       aliases: ['vsd', 'vascular streak'] },
+  pest_damage:  { slug: 'pest_damage',  description: 'Small black spots on pods caused by insect feeding and boring.',       fallbackUrgency: 'medium', imageUrl: '/img/pest_d.png',      aliases: ['pest', 'pest damage', 'insect'] },
 };
 
-type TopicCard = {
-  title: string;
-  imageUrl: string;
+const DISPLAY_NAMES: Record<string, string> = {
+  black_pod:    'Black Pod Disease',
+  ccsv:         'CCSV Disease',
+  witches_broom:"Witches' Broom",
+  frosty_pod:   'Frosty Pod Rot',
+  vsd:          'VSD Disease',
+  pest_damage:  'Pest Damage',
 };
 
-const DISEASE_COPY: Record<
-  string,
-  {
-    canonicalName: string;
-    description: string;
-    fallbackUrgency: "high" | "medium";
-    imageUrl: string;
-    aliases: string[];
+const SLUG_ORDER = ['black_pod','ccsv','witches_broom','frosty_pod','vsd','pest_damage'] as const;
+
+function normalize(s: string) { return s.toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim(); }
+
+function matchSlug(name: string): typeof SLUG_ORDER[number] | null {
+  const n = normalize(name);
+  for (const slug of SLUG_ORDER) {
+    const entry = DISEASE_COPY[slug]!;
+    if ([slug, ...entry.aliases].some((a) => n.includes(normalize(a)))) return slug;
   }
-> = {
-  black_pod_disease: {
-    canonicalName: "Black Pod Disease",
-    description: "Fungal infection causing pod rot and dark lesions.",
-    fallbackUrgency: "high",
-    imageUrl: "/img/blackpod_d.png",
-    aliases: ["black pod", "blackpod"],
-  },
-  ccsv_disease: {
-    canonicalName: "CCSV Disease",
-    description: "Virus causing leaf redness and stem swelling.",
-    fallbackUrgency: "high",
-    imageUrl: "/img/ccsv_d.png",
-    aliases: ["ccsv", "cssvd", "swollen shoot", "cocoa swollen shoot"],
-  },
-  witches_broom: {
-    canonicalName: "Witches' Broom",
-    description: "Abnormal broom-like shoots forming at branch tips.",
-    fallbackUrgency: "medium",
-    imageUrl: "/img/witches_d.png",
-    aliases: ["witches broom", "witches' broom"],
-  },
-  frosty_pod_rot: {
-    canonicalName: "Frosty Pod Rot",
-    description: "White fungal growth covering pods like frost.",
-    fallbackUrgency: "medium",
-    imageUrl: "/img/frosty_d.png",
-    aliases: ["frosty pod", "frosty pod rot"],
-  },
-  vsd_disease: {
-    canonicalName: "VSD Disease",
-    description: "Yellowing leaf edges with brown streaks along veins.",
-    fallbackUrgency: "medium",
-    imageUrl: "/img/vsd_d.png",
-    aliases: ["vsd", "vascular streak", "streak dieback"],
-  },
-  pest_damage: {
-    canonicalName: "Pest Damage",
-    description: "Small black pod spots from insect feeding activity.",
-    fallbackUrgency: "medium",
-    imageUrl: "/img/pest_d.png",
-    aliases: ["pest", "pest damage", "insect"],
-  },
-};
-
-const DISEASE_ORDER = [
-  "black_pod_disease",
-  "ccsv_disease",
-  "witches_broom",
-  "frosty_pod_rot",
-  "vsd_disease",
-  "pest_damage",
-] as const;
-
-const LEARN_TOPIC_CARDS: TopicCard[] = [
-  { title: "Cocoa Growth & Care", imageUrl: "/img/homelogo.png" },
-  { title: "Watering & Soil Health", imageUrl: "/img/backdrop.png" },
-  { title: "Harvest & Post-Harvest", imageUrl: "/img/scan-leaf.png" },
-  { title: "Benefits & Sustainability", imageUrl: "/img/unknown.png" },
-];
-
-function unwrapArray<T>(value: unknown): T[] {
-  if (Array.isArray(value)) return value as T[];
-  if (value && typeof value === 'object' && 'data' in (value as any)) {
-    const data = (value as WithData<unknown>).data;
-    if (Array.isArray(data)) return data as T[];
-  }
-  return [];
-}
-
-async function getDiseases(): Promise<DiseaseListItem[]> {
-  try {
-    const payload = await serverApi<unknown>(`/diseases/?limit=6`);
-    return unwrapArray<DiseaseListItem>(payload);
-  } catch {
-    return [];
-  }
-}
-
-function normalizeName(value: string): string {
-  return value.toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
-}
-
-function resolveDiseaseKey(name: string): keyof typeof DISEASE_COPY | null {
-  const normalized = normalizeName(name);
-
-  for (const key of DISEASE_ORDER) {
-    const entry = DISEASE_COPY[key];
-    const candidates = [entry.canonicalName, ...entry.aliases];
-    if (candidates.some((candidate) => normalized.includes(normalizeName(candidate)))) {
-      return key;
-    }
-  }
-
   return null;
 }
 
-function toUrgency(urgency: string | undefined, fallback: "high" | "medium") {
-  const value = (urgency || fallback).toLowerCase();
-  if (value === "high") {
-    return { urgencyLabel: "High Urgency" as const, urgencyClass: "bg-urgency-high" };
-  }
-  return { urgencyLabel: "Medium Urgency" as const, urgencyClass: "bg-urgency-medium" };
+const URGENCY_STYLE: Record<string, { badge: string; dot: string }> = {
+  high:   { badge: 'bg-red-50 text-red-700 border-red-200',    dot: 'bg-red-500' },
+  medium: { badge: 'bg-yellow-50 text-yellow-700 border-yellow-200', dot: 'bg-yellow-400' },
+  low:    { badge: 'bg-green-50 text-green-700 border-green-200', dot: 'bg-green-500' },
+};
+
+async function getDiseases() {
+  try {
+    const payload = await serverApi<DiseaseListItem[] | { data?: DiseaseListItem[] }>('/diseases/?limit=6');
+    const list = Array.isArray(payload)
+      ? payload
+      : Array.isArray((payload as { data?: DiseaseListItem[] }).data)
+      ? (payload as { data: DiseaseListItem[] }).data
+      : [];
+    return list as DiseaseListItem[];
+  } catch { return []; }
 }
 
-function buildDiseaseCards(items: DiseaseListItem[]): LearnDiseaseCard[] {
-  const matchedByKey = new Map<keyof typeof DISEASE_COPY, DiseaseListItem>();
-
-  for (const item of items) {
-    const key = resolveDiseaseKey(item.name);
-    if (key && !matchedByKey.has(key)) {
-      matchedByKey.set(key, item);
-    }
+export default async function LearnPage() {
+  const diseases  = await getDiseases();
+  const bySlug    = new Map<string, DiseaseListItem>();
+  for (const d of diseases) {
+    const slug = matchSlug(d.name);
+    if (slug && !bySlug.has(slug)) bySlug.set(slug, d);
   }
-
-  return DISEASE_ORDER.map((key, index) => {
-    const entry = DISEASE_COPY[key];
-    const matched = matchedByKey.get(key);
-    const urgency = toUrgency(matched?.urgency_level, entry.fallbackUrgency);
-
-    return {
-      key,
-      diseaseId: matched?.disease_id ?? index + 1,
-      name: entry.canonicalName,
-      description: entry.description,
-      urgencyLabel: urgency.urgencyLabel,
-      urgencyClass: urgency.urgencyClass,
-      imageUrl: entry.imageUrl,
-    };
-  });
-}
-
-
-export default async function Learn() {
-  const diseases = await getDiseases();
-  const diseaseCards = buildDiseaseCards(diseases);
 
   return (
-    <div className="max-w-mobile mx-auto min-h-screen bg-background relative shadow-mobile">
-      
-      <div className="px-5 pb-8">
-        {/* Header */}
-        <div className="flex items-center justify-between py-4 mb-6">
-          <Link
-            href="/home"
-            className="bg-gray-100 border-none text-lg cursor-pointer rounded-full flex items-center justify-center w-12 h-12 hover:bg-gray-200"
-            aria-label="Go back"
-          >
-            <span className="text-3xl leading-none text-gray-700">&#8249;</span>
-          </Link>
-          <h1 className="text-xl font-semibold text-brand-text-titles">Learn</h1>
-          <div className="w-12"></div>
-        </div>
-        
-        <h2 className="text-base font-semibold text-brand-text-titles mb-5">Learn About Cocoa Diseases</h2>
-        
-        <div className="grid grid-cols-2 gap-x-4 gap-y-7 mb-10">
-          {diseaseCards.map((disease) => (
-            <Link
-              key={disease.key}
-              href={`/learn/${disease.diseaseId}`}
-              className="flex flex-col items-center text-center bg-white rounded-3xl p-4 h-full hover:shadow-lg transition-shadow"
-            >
-              <img
-                src={disease.imageUrl}
-                alt={disease.name}
-                width={96}
-                height={96}
-                className="object-contain w-[96px] h-[96px] mb-2"
-              />
-              <h3 className="text-[17px] leading-tight font-semibold text-brand-text-titles mb-2 min-h-[42px] flex items-center justify-center">
-                {disease.name}
-              </h3>
-              <p className="text-brand-sub-text text-[12px] leading-tight mb-3 min-h-[52px] max-w-[132px] mx-auto">
-                {disease.description}
-              </p>
-              <span
-                className={`inline-flex items-center justify-center rounded-full px-4 py-1 text-white text-[12px] font-medium leading-none ${disease.urgencyClass}`}
-              >
-                {disease.urgencyLabel}
-              </span>
-            </Link>
-          ))}
-        </div>
+    <AuthGuard type="protected">
+      <div className="max-w-mobile mx-auto min-h-screen bg-background relative shadow-mobile">
+        <div className="px-5 pb-24">
 
-        <div className="grid grid-cols-2 gap-3 pb-20">
-          {LEARN_TOPIC_CARDS.map((topic) => (
-            <div
-              key={topic.title}
-              className="bg-white rounded-3xl p-3 h-28 flex items-center justify-between gap-3"
-            >
-              <p className="text-brand-text-titles text-[14px] font-medium leading-snug max-w-[95px]">
-                {topic.title}
-              </p>
-              <img
-                src={topic.imageUrl}
-                alt={topic.title}
-                width={70}
-                height={70}
-                className="object-contain w-[70px] h-[70px]"
-              />
-            </div>
-          ))}
+          {/* ── Header ──────────────────────────────────────────────────── */}
+          <div className="flex items-center justify-between pt-12 pb-6">
+            <Link href={ROUTES_HOME} aria-label="Back"
+              className="w-9 h-9 rounded-full bg-gray-100 flex items-center justify-center text-gray-600 hover:bg-gray-200 transition">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="m15 18-6-6 6-6"/></svg>
+            </Link>
+            <h1 className="text-xl font-bold text-gray-900">Learn</h1>
+            <div className="w-9" />
+          </div>
+
+          {/* Section label */}
+          <h2 className="text-base font-semibold text-gray-800 mb-4">Cocoa Diseases</h2>
+
+          {/* Disease grid */}
+          <div className="grid grid-cols-2 gap-3 mb-8">
+            {SLUG_ORDER.map((slug) => {
+              const entry   = DISEASE_COPY[slug]!;
+              const matched = bySlug.get(slug);
+              const urgency = (matched?.urgency_level ?? entry.fallbackUrgency).toLowerCase();
+              const style   = URGENCY_STYLE[urgency] ?? URGENCY_STYLE.medium!;
+              const diseaseId = matched?.disease_id ?? 1;
+
+              return (
+                <Link
+                  key={slug}
+                  href={`/learn/${diseaseId}`}
+                  className="group bg-white rounded-3xl p-4 border border-gray-100 shadow-sm hover:shadow-md transition-all flex flex-col gap-3"
+                >
+                  {/* Image */}
+                  <div className="w-full h-24 rounded-xl overflow-hidden bg-gray-50 flex items-center justify-center">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src={entry.imageUrl} alt={DISPLAY_NAMES[slug] ?? slug} className="w-full h-full object-cover" />
+                  </div>
+
+                  {/* Name */}
+                  <p className="text-sm font-semibold text-gray-900 leading-tight group-hover:text-primary-green transition-colors">
+                    {DISPLAY_NAMES[slug] ?? slug}
+                  </p>
+
+                  {/* Description */}
+                  <p className="text-[11px] text-gray-400 leading-relaxed line-clamp-2 flex-1">
+                    {entry.description}
+                  </p>
+
+                  {/* Urgency pill */}
+                  <span className={`self-start rounded-full border px-2.5 py-0.5 text-[10px] font-semibold ${style.badge}`}>
+                    {urgency === 'high' ? 'High Risk' : urgency === 'medium' ? 'Medium Risk' : 'Low Risk'}
+                  </span>
+                </Link>
+              );
+            })}
+          </div>
+
+          {/* Learning topics section */}
+          <h2 className="text-base font-semibold text-gray-800 mb-4">Cocoa Farming Tips</h2>
+          <div className="grid grid-cols-2 gap-3">
+            {[
+              { title: 'Growth & Care',          img: '/img/homelogo.png'  },
+              { title: 'Watering & Soil Health', img: '/img/backdrop.png'  },
+              { title: 'Harvest & Post-Harvest', img: '/img/scan-leaf.png' },
+              { title: 'Sustainability',          img: '/img/unknown.png'   },
+            ].map((topic) => (
+              <div
+                key={topic.title}
+                className="bg-white rounded-3xl p-4 border border-gray-100 shadow-sm flex items-center justify-between gap-2 h-20"
+              >
+                <p className="text-sm font-semibold text-gray-800 leading-snug flex-1">{topic.title}</p>
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={topic.img} alt={topic.title} className="w-12 h-12 object-contain shrink-0" />
+              </div>
+            ))}
+          </div>
         </div>
       </div>
-    </div>
+    </AuthGuard>
   );
 }
+
+const ROUTES_HOME = '/home';

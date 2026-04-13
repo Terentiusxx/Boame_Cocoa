@@ -1,166 +1,197 @@
+/**
+ * ContactFormClient.tsx
+ * ─────────────────────────────────────────────────────────────
+ * Consultation request form. Receives expert details as props
+ * from the server component — only does the POST (consultation submit).
+ *
+ * Server fetches (in app/contact/form/page.tsx):
+ *   GET /experts/:id → expert prop
+ *
+ * Client mutations:
+ *   POST /consultations — submit consultation request
+ */
 'use client';
 
+import { useState, type FormEvent } from 'react';
 import Link from 'next/link';
-import { FormEvent, useEffect, useMemo, useState } from 'react';
-import { useRouter, useSearchParams } from 'next/navigation';
-import type { Expert } from '@/lib/types';
+import { useRouter } from 'next/navigation';
+import { FiArrowLeft } from 'react-icons/fi';
+import { extractErrorMessage } from '@/lib/utils';
+import { ROUTES } from '@/lib/constants';
 
-type MaybeWrapped<T> = T | { data?: T };
+// ─── Types ────────────────────────────────────────────────────────────────────
 
-function unwrapData<T>(value: MaybeWrapped<T> | null): T | null {
-  if (!value) return null;
-  if (typeof value === 'object' && 'data' in value) {
-    return ((value as { data?: T }).data ?? null) as T | null;
-  }
-  return value as T;
-}
+type Expert = {
+  expert_id: number;
+  first_name: string;
+  last_name: string;
+  specialization?: string;
+} | null;
 
-function fullName(expert: Expert | null) {
-  if (!expert) return 'Selected Expert';
-  return [expert.first_name, expert.mid_name, expert.last_name].filter(Boolean).join(' ').trim() || 'Selected Expert';
-}
+// ─── Component ────────────────────────────────────────────────────────────────
 
-export default function ContactFormClient() {
+export default function ContactFormClient({
+  expert,
+  expertId,
+  scanId,
+}: {
+  expert: Expert;
+  expertId?: string;
+  scanId?: string;
+}) {
   const router = useRouter();
-  const searchParams = useSearchParams();
 
-  const expertIdParam = searchParams.get('expert_id');
-  const scanIdParam = searchParams.get('scan_id');
+  const [subject,     setSubject]     = useState('');
+  const [description, setDescription] = useState('');
+  const [loading,     setLoading]     = useState(false);
+  const [error,       setError]       = useState<string | null>(null);
+  const [success,     setSuccess]     = useState(false);
 
-  const expertId = expertIdParam ? Number(expertIdParam) : NaN;
-
-  const [experts, setExperts] = useState<Expert[]>([]);
-  const [loadingExpert, setLoadingExpert] = useState(true);
-  const [submitting, setSubmitting] = useState(false);
-
-  useEffect(() => {
-    let mounted = true;
-
-    const loadExperts = async () => {
-      setLoadingExpert(true);
-      try {
-        const res = await fetch('/api/experts', { method: 'GET' });
-        const payload = (await res.json().catch(() => null)) as MaybeWrapped<Expert[]> | null;
-        const data = unwrapData<Expert[]>(payload);
-
-        if (!mounted) return;
-        setExperts(Array.isArray(data) ? data : []);
-      } finally {
-        if (mounted) setLoadingExpert(false);
-      }
-    };
-
-    void loadExperts();
-    return () => {
-      mounted = false;
-    };
-  }, []);
-
-  const selectedExpert = useMemo(() => {
-    if (!Number.isFinite(expertId) || expertId <= 0) return null;
-    return experts.find((expert) => expert.expert_id === expertId) ?? null;
-  }, [expertId, experts]);
-
-  const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
+  const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
+    setError(null);
 
-    if (!Number.isFinite(expertId) || expertId <= 0) {
-      alert('Please select an expert first.');
-      router.replace('/contact');
+    if (!description.trim()) {
+      setError('Please describe what you need help with.');
       return;
     }
 
-    const form = e.currentTarget;
-    const formData = new FormData(form);
-    const subject = String(formData.get('subject') ?? '').trim();
-    const description = String(formData.get('description') ?? '').trim();
+    setLoading(true);
 
-    const scanId = scanIdParam ? Number(scanIdParam) : undefined;
-
-    setSubmitting(true);
     try {
       const res = await fetch('/api/consultations', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          scan_id: Number.isFinite(scanId) ? scanId : undefined,
-          expert_id: expertId,
-          subject,
-          description,
+          expert_id:   expertId ? Number(expertId) : undefined,
+          scan_id:     scanId   ? Number(scanId)   : undefined,
+          subject:     subject.trim() || 'Expert help request',
+          description: description.trim(),
         }),
       });
 
-      const payload = (await res.json().catch(() => null)) as Record<string, unknown> | null;
-
       if (!res.ok) {
-        alert('Failed to send your message. Please try again.');
+        const payload = await res.json().catch(() => null);
+        setError(extractErrorMessage(payload, 'Failed to send request. Please try again.'));
         return;
       }
 
-      const consultationId =
-        Number(payload?.consultation_id ?? payload?.consult_id ?? (payload?.data as Record<string, unknown> | undefined)?.consultation_id ?? (payload?.data as Record<string, unknown> | undefined)?.consult_id ?? payload?.id);
-
-      if (Number.isFinite(consultationId) && consultationId > 0) {
-        router.push(`/messages/${consultationId}`);
-      } else {
-        router.push('/messages');
-      }
+      setSuccess(true);
+    } catch (err) {
+      setError(extractErrorMessage(err, 'Connection failed. Please try again.'));
     } finally {
-      setSubmitting(false);
+      setLoading(false);
     }
   };
 
+  // ── Success screen ──────────────────────────────────────────────────────────
+  if (success) {
+    return (
+      <div className="max-w-mobile mx-auto min-h-screen bg-background relative shadow-mobile flex flex-col items-center justify-center px-6 text-center">
+        <div className="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mb-6">
+          <span className="text-4xl">✅</span>
+        </div>
+        <h2 className="text-2xl font-bold text-brand-text-titles mb-3">Request Sent!</h2>
+        <p className="text-brand-sub-text mb-8 max-w-xs">
+          {expert ? `${expert.first_name} ${expert.last_name}` : 'The expert'} will get back to you shortly.
+        </p>
+        <Link
+          href={ROUTES.MESSAGES}
+          className="block w-full rounded-brand bg-brand-buttons py-4 text-center text-base font-semibold text-white hover:opacity-90 transition"
+        >
+          View Messages
+        </Link>
+        <Link
+          href={ROUTES.HOME}
+          className="block w-full mt-3 py-3 text-center text-brand-hyperlink text-sm font-medium hover:underline"
+        >
+          Back to Home
+        </Link>
+      </div>
+    );
+  }
+
+  // ── Form ────────────────────────────────────────────────────────────────────
   return (
     <div className="max-w-mobile mx-auto min-h-screen bg-background relative shadow-mobile">
-      <div className="px-6 pb-6">
-        <div className="flex items-center justify-between py-4 mb-6">
-          <Link
-            href={`/contact${scanIdParam ? `?scan_id=${encodeURIComponent(scanIdParam)}` : ''}`}
-            className="bg-transparent border-none text-lg cursor-pointer p-2 rounded-full flex items-center justify-center w-9 h-9 hover:bg-black/5"
+      <div className="px-6 flex flex-col min-h-screen">
+
+        {/* ── Header ─────────────────────────────────────────────────────── */}
+        <div className="flex items-center justify-between py-4 mb-4">
+          <button
+            type="button"
+            onClick={() => router.back()}
+            aria-label="Go back"
+            className="flex items-center justify-center w-9 h-9 rounded-full hover:bg-black/5 transition"
           >
-            <span className="text-xl">&lt;</span>
-          </Link>
-          <h1 className="text-xl font-semibold text-brand-text-titles">Message Expert</h1>
-          <div className="w-9"></div>
+            <FiArrowLeft size={20} />
+          </button>
+          <h1 className="text-xl font-semibold text-brand-text-titles">Contact Expert</h1>
+          <div className="w-9" />
         </div>
 
-        <div className="rounded-xl border border-green-200 bg-green-50 p-4 mb-5">
-          <p className="text-xs font-semibold text-green-800 uppercase tracking-wide">Selected Expert</p>
-          <p className="text-base font-semibold text-brand-text-titles mt-1">
-            {loadingExpert ? 'Loading...' : fullName(selectedExpert)}
-          </p>
-          <p className="text-sm text-brand-sub-text mt-1">{selectedExpert?.specialization || 'Cocoa Specialist'}</p>
-        </div>
+        {/* Expert name — rendered from server-fetched prop, no loading state */}
+        {expert && (
+          <div className="mb-4 rounded-xl bg-green-50 px-4 py-3 text-sm text-brand-text-titles">
+            Sending to: <strong>{expert.first_name} {expert.last_name}</strong>
+            {expert.specialization && (
+              <span className="text-brand-sub-text"> · {expert.specialization}</span>
+            )}
+          </div>
+        )}
 
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div>
-            <label className="block text-sm font-medium text-brand-sub-titles mb-2">Subject</label>
+        {scanId && (
+          <div className="mb-4 rounded-xl bg-blue-50 px-4 py-3 text-sm text-gray-600">
+            This consultation will be linked to your recent scan.
+          </div>
+        )}
+
+        {/* ── Form ───────────────────────────────────────────────────────── */}
+        <form onSubmit={handleSubmit} className="flex-1 flex flex-col gap-4">
+
+          {error && (
+            <div role="alert" className="rounded-lg bg-red-50 border border-red-200 px-4 py-3 text-sm text-red-700">
+              {error}
+            </div>
+          )}
+
+          <div className="flex flex-col gap-1.5">
+            <label htmlFor="subject" className="text-sm font-medium text-gray-700">
+              Subject <span className="text-gray-400 font-normal">(optional)</span>
+            </label>
             <input
-              name="subject"
+              id="subject"
               type="text"
-              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
-              placeholder="What do you need help with?"
-              required
+              value={subject}
+              onChange={(e) => setSubject(e.target.value)}
+              placeholder="e.g. Black pod disease on my farm"
+              disabled={loading}
+              className="w-full rounded-brand border border-gray-200 bg-white px-4 py-3 text-brand-input-text placeholder-gray-400 outline-none transition focus:border-primary-green focus:ring-2 focus:ring-primary-green/20"
             />
           </div>
 
-          <div>
-            <label className="block text-sm font-medium text-brand-sub-titles mb-2">Description</label>
+          <div className="flex flex-col gap-1.5 flex-1">
+            <label htmlFor="description" className="text-sm font-medium text-gray-700">
+              Message <span className="text-red-400">*</span>
+            </label>
             <textarea
-              name="description"
-              rows={5}
-              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
+              id="description"
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
               placeholder="Describe what you are seeing on your cocoa plants..."
-              required
-            ></textarea>
+              rows={6}
+              disabled={loading}
+              className="w-full flex-1 rounded-brand border border-gray-200 bg-white px-4 py-3 text-brand-input-text placeholder-gray-400 outline-none transition focus:border-primary-green focus:ring-2 focus:ring-primary-green/20 resize-none"
+            />
           </div>
 
           <button
+            id="contact-form-submit"
             type="submit"
-            disabled={submitting || !Number.isFinite(expertId) || expertId <= 0}
-            className="bg-brand-buttons text-white border-none px-6 py-4 rounded-brand text-base font-semibold cursor-pointer transition-all w-full text-center no-underline inline-block hover:opacity-90 disabled:opacity-60"
+            disabled={loading}
+            className="mb-8 w-full rounded-brand bg-brand-buttons py-4 text-base font-semibold text-white transition hover:opacity-90 active:scale-95 disabled:cursor-not-allowed disabled:opacity-60"
           >
-            {submitting ? 'Sending...' : 'Send Message'}
+            {loading ? 'Sending...' : 'Send Request'}
           </button>
         </form>
       </div>

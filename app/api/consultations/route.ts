@@ -1,93 +1,99 @@
-import { backendFetch } from '@/lib/backendProxy'
-import { NextResponse } from 'next/server'
+/**
+ * app/api/consultations/route.ts
+ * POST /api/consultations → backend POST /consultations
+ *
+ * Creates a consultation request between the user and a selected expert.
+ * Optionally includes a scan_id to link the consultation to a specific scan.
+ * Priority is inferred from the linked scan's disease urgency when available.
+ */
+import { backendFetch, proxyBackendJson } from '@/lib/backendProxy';
+import { NextResponse } from 'next/server';
+import { cookies } from 'next/headers';
+import { USER_ID_COOKIE, COOKIE_NAME } from '@/lib/constants';
+import { unwrapData } from '@/lib/utils';
 
-type WithData<T> = { data: T }
-type MaybeWrapped<T> = T | WithData<T>
-
-function unwrap<T>(value: MaybeWrapped<T>): T {
-  if (value && typeof value === 'object' && 'data' in value) {
-    return (value as WithData<T>).data
+/** Get the authenticated user's ID from cookie or dashboard API */
+async function getUserId(): Promise<number | null> {
+  // Fast path: user_id cookie set during login
+  const fromCookie = (await cookies()).get(USER_ID_COOKIE)?.value;
+  if (fromCookie) {
+    const n = Number(fromCookie);
+    if (Number.isFinite(n) && n > 0) return n;
   }
-  return value as T
+
+  // Slow path: fetch dashboard and extract user_id
+  const res = await backendFetch('/users/dashboard', { method: 'GET' });
+  if (!res.ok) return null;
+  const data = await res.json().catch(() => null) as Record<string, unknown> | null;
+  const id = data?.user_id ?? data?.id ??
+    (data?.data as Record<string, unknown> | undefined)?.user_id ??
+    (data?.user as Record<string, unknown> | undefined)?.user_id;
+  return id ? Number(id) : null;
 }
 
-function urgencyToPriority(urgencyLevel?: string): 'High' | 'Medium' | 'Low' {
-  const v = (urgencyLevel || '').toLowerCase()
-  if (v === 'high') return 'High'
-  if (v === 'low') return 'Low'
-  return 'Medium'
-}
-
-async function inferPriorityFromScan(scanId: number): Promise<'High' | 'Medium' | 'Low'> {
+/**
+ * Infer priority from a scan's linked disease urgency.
+ * Falls back to 'Medium' if the scan or disease cannot be fetched.
+ */
+async function getPriorityFromScan(scanId: number): Promise<'High' | 'Medium' | 'Low'> {
   try {
-    const scanRes = await backendFetch(`/scans/${scanId}`, { method: 'GET' })
-    if (!scanRes.ok) return 'Medium'
-    const scanPayload = (await scanRes.json().catch(() => null)) as any
-    const scan = unwrap<any>(scanPayload)
-    const diseaseId = scan?.disease_id
-    const diseaseIdNum = typeof diseaseId === 'number' ? diseaseId : Number(diseaseId)
-    if (!Number.isFinite(diseaseIdNum) || diseaseIdNum <= 0) return 'Medium'
+    const scanRes = await backendFetch(`/scans/${scanId}`);
+    if (!scanRes.ok) return 'Medium';
 
-    const disRes = await backendFetch(`/diseases/${diseaseIdNum}`, { method: 'GET' })
-    if (!disRes.ok) return 'Medium'
-    const diseasePayload = (await disRes.json().catch(() => null)) as any
-    const disease = unwrap<any>(diseasePayload)
-    return urgencyToPriority(disease?.urgency_level)
+    const scan = unwrapData(await scanRes.json().catch(() => null)) as Record<string, unknown> | null;
+    const diseaseId = typeof scan?.disease_id === 'number' ? scan.disease_id : Number(scan?.disease_id);
+    if (!Number.isFinite(diseaseId) || diseaseId <= 0) return 'Medium';
+
+    const diseaseRes = await backendFetch(`/diseases/${diseaseId}`);
+    if (!diseaseRes.ok) return 'Medium';
+
+    const disease = unwrapData(await diseaseRes.json().catch(() => null)) as Record<string, unknown> | null;
+    const urgency = (disease?.urgency_level as string | undefined)?.toLowerCase();
+    if (urgency === 'high') return 'High';
+    if (urgency === 'low')  return 'Low';
+    return 'Medium';
   } catch {
-    return 'Medium'
+    return 'Medium';
   }
 }
 
 export async function POST(req: Request) {
   try {
-    const payload = (await req.json().catch(() => ({}))) as Record<string, unknown>
+    const payload = await req.json().catch(() => ({}) as Record<string, unknown>) as Record<string, unknown>;
 
-    const dashRes = await backendFetch('/users/dashboard', { method: 'GET' })
-    if (!dashRes.ok) {
-      const msg = await dashRes.text().catch(() => '')
-      return NextResponse.json({ message: msg || 'Unauthorized' }, { status: dashRes.status })
-    }
-
-    const dash = await dashRes.json().catch(() => null)
-    const userId =
-      dash?.user_id ??
-      dash?.id ??
-      dash?.data?.user_id ??
-      dash?.data?.id ??
-      dash?.user?.user_id ??
-      dash?.user?.id
-
-    const rawScanId = typeof payload.scan_id === 'number' ? payload.scan_id : Number(payload.scan_id)
-    const hasScanId = Number.isFinite(rawScanId) && rawScanId > 0
-    const scanId = hasScanId ? rawScanId : undefined
-
+    const userId = await getUserId();
     if (!userId) {
-      return NextResponse.json({ message: 'Missing user_id' }, { status: 400 })
+      return NextResponse.json({ message: 'Unauthorized — could not resolve user_id' }, { status: 401 });
     }
 
-    const priority = scanId ? await inferPriorityFromScan(scanId) : 'Medium'
+    const rawScanId = Number(payload.scan_id);
+    const scanId = Number.isFinite(rawScanId) && rawScanId > 0 ? rawScanId : undefined;
+
+    // Infer priority from scan if available; otherwise default to Medium
+    const priority = scanId ? await getPriorityFromScan(scanId) : 'Medium';
 
     const body = {
-      user_id: Number(userId),
+      user_id: userId,
       scan_id: scanId,
       expert_id: typeof payload.expert_id === 'number' ? payload.expert_id : undefined,
       subject: typeof payload.subject === 'string' ? payload.subject : 'Expert help request',
       description: typeof payload.description === 'string' ? payload.description : '',
       priority,
-    }
+    };
 
-    const res = await backendFetch('/consultations/', {
+    return proxyBackendJson('/consultations', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(body),
-    })
-
-    const json = await res.json().catch(() => null)
-    return NextResponse.json(json, { status: res.status })
+    });
   } catch (error) {
     return NextResponse.json(
       { message: error instanceof Error ? error.message : 'Failed' },
       { status: 500 }
-    )
+    );
   }
+}
+
+export async function GET() {
+  return proxyBackendJson('/consultations');
 }

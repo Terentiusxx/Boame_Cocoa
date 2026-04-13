@@ -1,88 +1,102 @@
 /**
- * Application Constants
- * Central location for all app-wide constant values
+ * constants.ts
+ * ─────────────────────────────────────────────────────────────
+ * Single source of truth for all app-wide constant values.
+ * Import from here instead of hard-coding strings in multiple files.
  */
 
-// App Configuration
+// ─── App Info ────────────────────────────────────────────────────────────────
+
 export const APP_NAME = 'Boame Cocoa';
 export const APP_DESCRIPTION = 'Cocoa Disease Detection Scanner';
 export const APP_VERSION = '1.0.0';
 
-// Routes
+// ─── Auth Cookies ────────────────────────────────────────────────────────────
+// Used by login route, logout route, session route, and backendProxy.
+// Change here once — applies everywhere.
+
+export const COOKIE_NAME = 'auth_token';
+export const USER_ID_COOKIE = 'user_id';
+
+/** Expert auth cookies — separate from user session so both can coexist */
+export const EXPERT_COOKIE_NAME = 'expert_token';
+export const EXPERT_ID_COOKIE   = 'expert_id';
+
+/** Cookie options shared across login/logout routes */
+export const COOKIE_OPTIONS = {
+  httpOnly: true,
+  sameSite: 'lax' as const,
+  path: '/',
+  maxAge: 60 * 60 * 24 * 7, // 7 days
+};
+
+// ─── Routes ──────────────────────────────────────────────────────────────────
+// Centralised client-side route paths. Use these in Link href and router.push().
+
 export const ROUTES = {
-  HOME: '/',
-  SIGNUP: '/signup',
-  SIGNIN: '/signin',
-  DASHBOARD: '/dashboard',
-  SCAN: '/scan',
-  HISTORY: '/history',
-  PROFILE: '/profile',
-  SETTINGS: '/settings',
+  SPLASH:         '/splash',
+  LOGIN:          '/login',
+  CREATE_ACCOUNT: '/create-account',
+  FORGOT_PASSWORD:'/forgot-password',
+  HOME:           '/home',
+  SCAN:           '/scan',
+  PROCESSING:     '/processing',
+  VOICE_DESCRIBE: '/voice-describe',
+  RESULTS:        '/results',
+  HISTORY:        '/history',
+  CONTACT:        '/contact',
+  MESSAGES:       '/messages',
+  LEARN:          '/learn',
+  SETTINGS:       '/settings',
+  EDIT_PROFILE:   '/settings/edit-profile',
 } as const;
 
-// API Endpoints (add your backend URLs here)
-export const API_ENDPOINTS = {
-  AUTH: {
-    SIGNUP: '/api/auth/signup',
-    SIGNIN: '/api/auth/signin',
-    SIGNOUT: '/api/auth/signout',
-    VERIFY: '/api/auth/verify',
-  },
-  SCAN: {
-    UPLOAD: '/api/scan/upload',
-    ANALYZE: '/api/scan/analyze',
-    HISTORY: '/api/scan/history',
-  },
-  USER: {
-    PROFILE: '/api/user/profile',
-    UPDATE: '/api/user/update',
-  },
+/** Expert portal routes */
+export const EXPERT_ROUTES = {
+  LOGIN:         '/expert/login',
+  REGISTER:      '/expert/register',
+  DASHBOARD:     '/expert/dashboard',
+  CONSULTATIONS: '/expert/consultations',
+  PROFILE:       '/expert/profile',
 } as const;
 
-// Disease Types
-export const COCOA_DISEASES = {
-  BLACK_POD: 'Black Pod Disease',
-  FROSTY_POD: 'Frosty Pod Rot',
-  WITCHES_BROOM: "Witches' Broom",
-  SWOLLEN_SHOOT: 'Cocoa Swollen Shoot Virus',
-  HEALTHY: 'Healthy',
+// ─── Session Storage Keys ────────────────────────────────────────────────────
+// All sessionStorage keys used in the scan flow live here.
+// ProcessingClient writes these; ResultsPage reads them.
+
+export const SESSION_KEYS = {
+  SCAN_IMAGE: 'scan_image',   // blob: or data: URL of the captured image
+  SCAN_ID: 'scan_id',         // numeric scan ID returned by the backend after upload
+  SCAN_PREDICTION: 'scan_prediction', // JSON-stringified { disease_id, confidence_score, created_at }
 } as const;
 
-// Form Validation
-export const VALIDATION = {
-  NAME: {
-    MIN_LENGTH: 2,
-    MAX_LENGTH: 50,
-  },
-  EMAIL: {
-    PATTERN: /^[^\s@]+@[^\s@]+\.[^\s@]+$/,
-  },
-  PASSWORD: {
-    MIN_LENGTH: 8,
-    MAX_LENGTH: 128,
-    PATTERN: /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/,
-  },
-} as const;
+// ─── Local Storage Keys ──────────────────────────────────────────────────────
 
-// Local Storage Keys
 export const STORAGE_KEYS = {
-  AUTH_TOKEN: 'auth_token',
-  USER_DATA: 'user_data',
   THEME: 'theme',
   LANGUAGE: 'language',
 } as const;
 
-// Animation Durations (in milliseconds)
-export const ANIMATION = {
-  FAST: 150,
-  NORMAL: 300,
-  SLOW: 500,
+// ─── Image Upload ────────────────────────────────────────────────────────────
+
+export const IMAGE_UPLOAD = {
+  MAX_SIZE: 5 * 1024 * 1024, // 5 MB
+  ACCEPTED_FORMATS: ['image/jpeg', 'image/png', 'image/webp'],
 } as const;
 
-// Image Upload
-export const IMAGE_UPLOAD = {
-  MAX_SIZE: 5 * 1024 * 1024, // 5MB
-  ACCEPTED_FORMATS: ['image/jpeg', 'image/png', 'image/webp'],
-  MAX_WIDTH: 2048,
-  MAX_HEIGHT: 2048,
+// ─── Disease Display ─────────────────────────────────────────────────────────
+// Urgency level strings returned by the backend, mapped to UI labels.
+
+export const URGENCY_LABELS: Record<string, string> = {
+  high: 'High Urgency',
+  medium: 'Medium Urgency',
+  low: 'Low Urgency',
+};
+
+// ─── Validation Rules ────────────────────────────────────────────────────────
+
+export const VALIDATION = {
+  PASSWORD: { MIN_LENGTH: 6 },
+  NAME: { MIN_LENGTH: 2 },
+  EMAIL: { PATTERN: /^[^\s@]+@[^\s@]+\.[^\s@]+$/ },
 } as const;

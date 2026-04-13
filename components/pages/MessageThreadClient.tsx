@@ -1,159 +1,174 @@
-'use client'
+/**
+ * MessageThreadClient.tsx
+ * ─────────────────────────────────────────────────────────────
+ * Chat view between user and an expert. Receives initial messages
+ * as a prop from the server component — no GET fetch here.
+ *
+ * Server fetches (in app/messages/[thread_id]/page.tsx):
+ *   GET /messages/:id → initialMessages prop
+ *
+ * Client mutations:
+ *   POST /messages/:id — send a new message (optimistic update)
+ */
+'use client';
 
-import Link from 'next/link'
-import { useMemo, useState } from 'react'
+import { useEffect, useRef, useState } from 'react';
+import { useRouter } from 'next/navigation';
+import { FiArrowLeft, FiSend } from 'react-icons/fi';
+import { extractErrorMessage, formatTime } from '@/lib/utils';
 
-type Expert = {
-  expert_id: number
-  first_name: string
-  last_name: string
-  specialization?: string
-  rating?: number
-  is_verified?: boolean
-}
+// ─── Types ────────────────────────────────────────────────────────────────────
 
 type Message = {
-  message_id: number
-  sender: 'user' | 'expert'
-  content: string
-  created_at: string
-}
+  message_id: number;
+  sender: 'user' | 'expert';
+  content: string;
+  created_at: string;
+};
 
- 
+// ─── Component ────────────────────────────────────────────────────────────────
 
-function formatDay(iso: string) {
-  const d = new Date(iso)
-  if (Number.isNaN(d.getTime())) return ''
-  return d.toLocaleDateString([], { month: 'short', day: 'numeric' })
-}
-
-function formatTime(iso: string) {
-  const d = new Date(iso)
-  if (Number.isNaN(d.getTime())) return ''
-  return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-}
-
-export default function MessageThreadClient(props: {
-  threadId: number
-  expert: Expert
-  initialMessages: Message[]
+export default function MessageThreadClient({
+  threadId,
+  initialMessages,
+}: {
+  threadId: string;
+  initialMessages: Message[];
 }) {
-  const [text, setText] = useState('')
-  const [messages, setMessages] = useState<Message[]>(props.initialMessages)
+  const router = useRouter();
+  const bottomRef = useRef<HTMLDivElement>(null);
 
-  const expertName = `${props.expert.first_name} ${props.expert.last_name}`
+  // Seed messages from server-fetched prop — no useEffect GET needed
+  const [messages,  setMessages]  = useState<Message[]>(initialMessages);
+  const [input,     setInput]     = useState('');
+  const [sending,   setSending]   = useState(false);
+  const [sendError, setSendError] = useState<string | null>(null);
 
-  const grouped = useMemo(() => {
-    const groups: Array<{ day: string; items: Message[] }> = []
-    for (const m of messages) {
-      const day = formatDay(m.created_at)
-      const last = groups[groups.length - 1]
-      if (!last || last.day !== day) groups.push({ day, items: [m] })
-      else last.items.push(m)
-    }
-    return groups
-  }, [messages])
+  // Scroll to bottom on initial load and when messages change
+  useEffect(() => {
+    bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [messages]);
 
-  const onSend = () => {
-    const value = text.trim()
-    if (!value) return
+  const handleSend = async () => {
+    const text = input.trim();
+    if (!text || sending) return;
 
-    const next: Message = {
-      message_id: (messages[messages.length - 1]?.message_id ?? 0) + 1,
+    setSendError(null);
+    setSending(true);
+
+    // Optimistic update — show the message immediately in the UI
+    const optimistic: Message = {
+      message_id: Date.now(),
       sender: 'user',
-      content: value,
+      content: text,
       created_at: new Date().toISOString(),
+    };
+    setMessages((prev) => [...prev, optimistic]);
+    setInput('');
+
+    try {
+      const res = await fetch(`/api/messages/${threadId}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ content: text }),
+      });
+
+      if (!res.ok) {
+        // Revert optimistic message on failure
+        setMessages((prev) => prev.filter((m) => m.message_id !== optimistic.message_id));
+        setInput(text);
+        const payload = await res.json().catch(() => null);
+        setSendError(extractErrorMessage(payload, 'Failed to send message.'));
+      }
+    } catch (err) {
+      // Revert optimistic message on network error
+      setMessages((prev) => prev.filter((m) => m.message_id !== optimistic.message_id));
+      setInput(text);
+      setSendError(extractErrorMessage(err, 'Connection failed. Please check your internet.'));
+    } finally {
+      setSending(false);
     }
-
-    setMessages((prev) => [...prev, next])
-    setText('')
-
-    // UI-only: simulate expert reply
-    setTimeout(() => {
-      setMessages((prev) => [
-        ...prev,
-        {
-          message_id: next.message_id + 1,
-          sender: 'expert',
-          content: 'Thanks — I will review and get back to you shortly.',
-          created_at: new Date().toISOString(),
-        },
-      ])
-    }, 650)
-  }
+  };
 
   return (
     <div className="max-w-mobile mx-auto min-h-screen bg-background relative shadow-mobile flex flex-col">
-       
 
-      <div className="px-6 py-4 border-b border-gray-100">
-        <div className="flex items-center justify-between">
-          <Link
-            href="/messages"
-            className="bg-transparent border-none text-lg cursor-pointer p-2 rounded-full flex items-center justify-center w-9 h-9 hover:bg-black/5"
-          >
-            <span className="text-xl">‹</span>
-          </Link>
-
-          <div className="flex-1 text-center">
-            <p className="text-base font-semibold text-brand-text-titles">{expertName}</p>
-            <p className="text-xs text-brand-sub-text">
-              {props.expert.specialization || 'Agricultural Expert'}
-              {props.expert.is_verified ? ' • Verified' : ''}
-            </p>
-          </div>
-
-          <div className="w-9"></div>
-        </div>
+      {/* ── Header ─────────────────────────────────────────────────────────── */}
+      <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
+        <button
+          type="button"
+          onClick={() => router.back()}
+          aria-label="Go back"
+          className="flex items-center justify-center w-9 h-9 rounded-full hover:bg-black/5 transition"
+        >
+          <FiArrowLeft size={20} />
+        </button>
+        <h1 className="text-xl font-semibold text-brand-text-titles">Thread #{threadId}</h1>
+        <div className="w-9" />
       </div>
 
-      <div className="flex-1 px-6 py-4 space-y-6 overflow-auto">
-        {grouped.map((g) => (
-          <div key={g.day} className="space-y-3">
-            <div className="flex items-center justify-center">
-              <span className="text-xs text-gray-500 bg-gray-100 px-3 py-1 rounded-full">{g.day}</span>
+      {/* ── Messages ───────────────────────────────────────────────────────── */}
+      <div className="flex-1 overflow-y-auto px-4 py-4 space-y-3">
+
+        {messages.length === 0 && (
+          <p className="text-center text-sm text-gray-500 py-10">No messages yet. Say hello!</p>
+        )}
+
+        {messages.map((msg) => {
+          const isUser = msg.sender === 'user';
+          return (
+            <div key={msg.message_id} className={`flex ${isUser ? 'justify-end' : 'justify-start'}`}>
+              <div
+                className={
+                  'max-w-[78%] rounded-2xl px-4 py-2.5 text-sm ' +
+                  (isUser
+                    ? 'bg-brand-buttons text-white rounded-tr-none'
+                    : 'bg-white text-gray-900 shadow-card rounded-tl-none')
+                }
+              >
+                <p className="leading-relaxed">{msg.content}</p>
+                <p className={`text-[10px] mt-1 ${isUser ? 'text-white/70' : 'text-gray-400'}`}>
+                  {formatTime(msg.created_at)}
+                </p>
+              </div>
             </div>
+          );
+        })}
 
-            {g.items.map((m) => {
-              const isUser = m.sender === 'user'
-              return (
-                <div key={m.message_id} className={`flex ${isUser ? 'justify-end' : 'justify-start'}`}>
-                  <div
-                    className={
-                      isUser
-                        ? 'max-w-[78%] bg-brand-buttons text-white rounded-2xl rounded-br-md px-4 py-3'
-                        : 'max-w-[78%] bg-gray-100 text-gray-900 rounded-2xl rounded-bl-md px-4 py-3'
-                    }
-                  >
-                    <p className="text-sm leading-relaxed whitespace-pre-wrap">{m.content}</p>
-                    <p className={isUser ? 'text-[11px] text-white/80 mt-2 text-right' : 'text-[11px] text-gray-500 mt-2 text-right'}>
-                      {formatTime(m.created_at)}
-                    </p>
-                  </div>
-                </div>
-              )
-            })}
-          </div>
-        ))}
+        <div ref={bottomRef} />
       </div>
 
-      <div className="px-6 py-4 border-t border-gray-100 bg-background">
-        <div className="flex items-center gap-3">
+      {/* ── Input Bar ──────────────────────────────────────────────────────── */}
+      <div className="px-4 pb-6 pt-2 border-t border-gray-100">
+        {sendError && <p className="text-xs text-red-500 mb-2">{sendError}</p>}
+        <div className="flex items-center gap-2">
           <input
-            value={text}
-            onChange={(e) => setText(e.target.value)}
+            id="message-input"
+            type="text"
+            value={input}
+            onChange={(e) => setInput(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                void handleSend();
+              }
+            }}
             placeholder="Type a message..."
-            className="flex-1 px-4 py-3 bg-gray-100 border-none rounded-xl text-gray-900 focus:ring-2 focus:ring-brand-buttons focus:bg-white transition-all duration-200"
+            disabled={sending}
+            className="flex-1 rounded-full border border-gray-200 bg-white px-4 py-3 text-sm text-gray-900 placeholder-gray-400 outline-none transition focus:border-primary-green focus:ring-2 focus:ring-primary-green/20"
           />
           <button
+            id="send-message-btn"
             type="button"
-            onClick={onSend}
-            className="bg-brand-buttons text-white border-none px-4 py-3 rounded-xl font-semibold hover:opacity-90"
+            onClick={() => void handleSend()}
+            disabled={sending || !input.trim()}
+            aria-label="Send message"
+            className="w-11 h-11 rounded-full bg-brand-buttons flex items-center justify-center text-white transition hover:opacity-90 active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed"
           >
-            Send
+            <FiSend size={18} />
           </button>
         </div>
       </div>
     </div>
-  )
+  );
 }

@@ -1,339 +1,321 @@
-'use client'
+/**
+ * CreateAccountClient.tsx
+ * ─────────────────────────────────────────────────────────────
+ * Registration form. Sends new user data to /api/users then
+ * auto-logs in via /api/auth/login.
+ *
+ * The profile image is captured from the camera/file picker and
+ * stored as a base64 data URL string, sent as a field in the POST body.
+ * (Upload as an actual file if/when the backend supports it.)
+ */
+'use client';
 
-import Link from 'next/link'
-import React, { useState } from 'react'
-import { useRouter } from 'next/navigation'
-import { FiEye, FiEyeOff } from 'react-icons/fi'
-import { IMAGE_UPLOAD } from '@/lib/constants'
+import { useState, useRef, type FormEvent, type ChangeEvent } from 'react';
+import Link from 'next/link';
+import Image from 'next/image';
+import { useRouter } from 'next/navigation';
+import { FiEye, FiEyeOff, FiCamera } from 'react-icons/fi';
+import { ROUTES, VALIDATION, IMAGE_UPLOAD } from '@/lib/constants';
+import { extractErrorMessage } from '@/lib/utils';
 
-function toMessage(value: unknown): string {
-  if (typeof value === 'string') return value
-  if (value == null) return ''
+// ─── Types ────────────────────────────────────────────────────────────────────
 
-  if (Array.isArray(value)) {
-    return value
-      .map((v) => toMessage(v))
-      .filter(Boolean)
-      .join(', ')
+type FieldErrors = {
+  first_name?: string;
+  last_name?: string;
+  email?: string;
+  password?: string;
+  telephone?: string;
+};
+
+// ─── Validation ───────────────────────────────────────────────────────────────
+
+function validate(fields: {
+  first_name: string;
+  last_name: string;
+  email: string;
+  password: string;
+  telephone: string;
+}): FieldErrors {
+  const errors: FieldErrors = {};
+
+  if (fields.first_name.trim().length < VALIDATION.NAME.MIN_LENGTH) {
+    errors.first_name = 'First name must be at least 2 characters.';
+  }
+  if (fields.last_name.trim().length < VALIDATION.NAME.MIN_LENGTH) {
+    errors.last_name = 'Last name must be at least 2 characters.';
+  }
+  if (!VALIDATION.EMAIL.PATTERN.test(fields.email.trim())) {
+    errors.email = 'Please enter a valid email address.';
+  }
+  if (fields.password.length < VALIDATION.PASSWORD.MIN_LENGTH) {
+    errors.password = `Password must be at least ${VALIDATION.PASSWORD.MIN_LENGTH} characters.`;
   }
 
-  if (value instanceof Error) return value.message
-
-  if (typeof value === 'object') {
-    const anyValue = value as Record<string, unknown>
-    if (typeof anyValue.message === 'string') return anyValue.message
-    if (typeof anyValue.detail === 'string') return anyValue.detail
-    try {
-      return JSON.stringify(value)
-    } catch {
-      return String(value)
-    }
-  }
-
-  return String(value)
+  return errors;
 }
 
+// ─── Component ────────────────────────────────────────────────────────────────
+
 export default function CreateAccountClient() {
-  const router = useRouter()
+  const router = useRouter();
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const [name, setName] = useState('')
-  const [email, setEmail] = useState('')
-  const [telephone, setTelephone] = useState('')
-  const [city, setCity] = useState('')
-  const [region, setRegion] = useState('')
-  const [country, setCountry] = useState('')
-  const [imageUrl, setImageUrl] = useState('')
-  const [imageFile, setImageFile] = useState<File | null>(null)
-  const [password, setPassword] = useState('')
-  const [showPassword, setShowPassword] = useState(false)
-  const [loading, setLoading] = useState(false)
-  const [error, setError] = useState<string | null>(null)
+  // Form fields
+  const [firstName,  setFirstName]  = useState('');
+  const [lastName,   setLastName]   = useState('');
+  const [email,      setEmail]      = useState('');
+  const [password,   setPassword]   = useState('');
+  const [telephone,  setTelephone]  = useState('');
+  const [imageUrl,   setImageUrl]   = useState<string | null>(null); // base64 preview + send value
 
-  const onPickImage = async (file: File | undefined) => {
-    setError(null)
-    if (!file) return
+  // UI state
+  const [showPass,   setShowPass]   = useState(false);
+  const [loading,    setLoading]    = useState(false);
+  const [error,      setError]      = useState<string | null>(null);
+  const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
 
-    const acceptedFormats = IMAGE_UPLOAD.ACCEPTED_FORMATS as readonly string[]
-    if (!acceptedFormats.includes(file.type)) {
-      setError('Please upload a JPG, PNG, or WebP image')
-      return
-    }
+  /** Convert selected file to base64 and preview it */
+  const handleImageChange = (e: ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
 
+    // Validate file size
     if (file.size > IMAGE_UPLOAD.MAX_SIZE) {
-      setError('Image is too large (max 5MB)')
-      return
+      setError(`Image is too large. Maximum size is ${IMAGE_UPLOAD.MAX_SIZE / 1024 / 1024} MB.`);
+      return;
     }
 
-    const dataUrl = await new Promise<string>((resolve, reject) => {
-      const reader = new FileReader()
-      reader.onload = () => resolve(typeof reader.result === 'string' ? reader.result : '')
-      reader.onerror = () => reject(new Error('Failed to read image'))
-      reader.readAsDataURL(file)
-    })
+    const reader = new FileReader();
+    reader.onload = () => setImageUrl(reader.result as string);
+    reader.readAsDataURL(file);
+  };
 
-    if (!dataUrl) {
-      setError('Failed to read image')
-      return
+  const handleSubmit = async (e: FormEvent) => {
+    e.preventDefault();
+    setError(null);
+
+    // Client-side validation
+    const errors = validate({ first_name: firstName, last_name: lastName, email, password, telephone });
+    if (Object.keys(errors).length > 0) {
+      setFieldErrors(errors);
+      return;
     }
-
-    setImageFile(file)
-    setImageUrl(dataUrl)
-  }
-
-  const handleSignUp = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setError(null)
-    setLoading(true)
+    setFieldErrors({});
+    setLoading(true);
 
     try {
-      const parts = name.trim().split(/\s+/).filter(Boolean)
-      const first_name = parts[0] ?? ''
-      const last_name = parts.length >= 2 ? (parts[parts.length - 1] ?? 'User') : 'User'
-      const mid_name = parts.length >= 3 ? parts.slice(1, -1).join(' ') : undefined
-
-      if (!first_name) {
-        setError('Please enter your full name')
-        return
-      }
-
-      if (!city.trim() || !region.trim() || !country.trim()) {
-        setError('Please enter your city, region, and country')
-        return
-      }
-
-      if (!imageUrl) {
-        setError('Please upload a profile image')
-        return
-      }
-
-      const formData = new FormData()
-      formData.append('first_name', first_name)
-      if (mid_name) formData.append('mid_name', mid_name)
-      formData.append('last_name', last_name)
-      formData.append('email', email.trim())
-      formData.append('telephone', telephone.trim())
-      formData.append('city', city.trim())
-      formData.append('region', region.trim())
-      formData.append('country', country.trim())
-      formData.append('latitude', '0')
-      formData.append('longitude', '0')
-      formData.append('image_url', imageUrl)
-      formData.append('password', password)
-
-      const response = await fetch('/api/users', {
-        method: 'POST',
-        body: formData,
-      })
-
-      if (!response.ok) {
-        const payload = await response.json().catch(() => null)
-        const msg = toMessage((payload as any)?.detail ?? (payload as any)?.message ?? payload)
-        setError(msg || 'Signup failed')
-        return
-      }
-
-      const loginResponse = await fetch('/api/auth/login', {
+      // ── Step 1: Create the user account ──────────────────────────────────
+      const createRes = await fetch('/api/users', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password }),
-      })
+        body: JSON.stringify({
+          first_name: firstName.trim(),
+          last_name:  lastName.trim(),
+          email:      email.trim().toLowerCase(),
+          password,
+          telephone:  telephone.trim() || undefined,
+          // Profile image sent as base64 string
+          // TODO: Change to FormData with actual File when backend supports multipart upload
+          ...(imageUrl ? { profile_image: imageUrl } : {}),
+        }),
+      });
 
-      if (loginResponse.ok) {
-        router.replace('/home')
-      } else {
-        router.replace('/login')
+      if (!createRes.ok) {
+        const payload = await createRes.json().catch(() => null);
+        setError(extractErrorMessage(payload, 'Failed to create account. Please try again.'));
+        return;
       }
+
+      // ── Step 2: Auto-login after signup ──────────────────────────────────
+      const loginRes = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: email.trim().toLowerCase(), password }),
+      });
+
+      if (!loginRes.ok) {
+        // Account was created but auto-login failed — let user log in manually
+        router.replace(ROUTES.LOGIN);
+        return;
+      }
+
+      router.replace(ROUTES.HOME);
     } catch (err) {
-      setError(toMessage(err) || 'Signup failed')
+      setError(extractErrorMessage(err, 'Connection failed. Check your internet and try again.'));
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
-  }
+  };
 
   return (
     <div className="max-w-mobile mx-auto min-h-screen bg-background relative shadow-mobile">
-      <div className="px-6 pb-6 flex flex-col h-full">
-        <div className="flex items-center justify-between py-4 mb-8">
-          <Link
-            href="/login"
-            className="bg-transparent border-none text-lg cursor-pointer p-2 rounded-full flex items-center justify-center w-9 h-9 hover:bg-black/5"
-          >
-            <span className="text-xl">‹</span>
-          </Link>
-          <div className="flex-1"></div>
+      <div className="px-6 flex flex-col min-h-screen">
+
+        {/* ── Header ─────────────────────────────────────────────────────── */}
+        <div className="pt-14 pb-6 text-center">
+          <h1 className="text-3xl font-bold text-brand-text-titles mb-2">Create Account</h1>
+          <p className="text-brand-sub-text">Join Boame Cocoa today</p>
         </div>
 
-        <div className="flex-1 flex flex-col justify-start">
-          <div className="text-center mb-12">
-            <h1 className="text-3xl font-bold text-brand-text-titles mb-2">Create Account</h1>
-            <p className="text-brand-sub-text font-normal text-lg">Fill in the details to sign up</p>
+        {/* ── Form ───────────────────────────────────────────────────────── */}
+        <form onSubmit={handleSubmit} className="flex-1 flex flex-col gap-4" noValidate>
+
+          {/* Profile image picker */}
+          <div className="flex justify-center mb-2">
+            <button
+              type="button"
+              onClick={() => fileInputRef.current?.click()}
+              aria-label="Choose profile photo"
+              className="relative w-20 h-20 rounded-full bg-gray-100 overflow-hidden border-2 border-dashed border-gray-300 hover:border-primary-green transition group"
+            >
+              {imageUrl ? (
+                <Image src={imageUrl} alt="Profile preview" fill className="object-cover" />
+              ) : (
+                <span className="flex flex-col items-center justify-center h-full text-gray-400 group-hover:text-primary-green transition">
+                  <FiCamera size={22} />
+                  <span className="text-[10px] mt-1">Photo</span>
+                </span>
+              )}
+            </button>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept={IMAGE_UPLOAD.ACCEPTED_FORMATS.join(',')}
+              onChange={handleImageChange}
+              className="hidden"
+              aria-hidden="true"
+            />
           </div>
 
-          <div className="bg-card-bg shadow-card rounded-brand p-6">
-            <form onSubmit={handleSignUp} className="space-y-6">
-            <div>
-              <label className="block text-sm font-medium text-brand-sub-titles mb-3">Your Name</label>
+          {/* Global error */}
+          {error && (
+            <div role="alert" className="rounded-lg bg-red-50 border border-red-200 px-4 py-3 text-sm text-red-700">
+              {error}
+            </div>
+          )}
+
+          {/* First name + Last name */}
+          <div className="grid grid-cols-2 gap-3">
+            <div className="flex flex-col gap-1.5">
+              <label htmlFor="first_name" className="text-sm font-medium text-gray-700">First Name</label>
               <input
+                id="first_name"
                 type="text"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                className="w-full px-4 py-4 bg-gray-100 border-none rounded-xl text-gray-900 focus:ring-2 focus:ring-green-500 focus:bg-white transition-all duration-200"
-                placeholder="Enter your full name"
-                required
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-brand-sub-titles mb-3">Email Address</label>
-              <input
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                className="w-full px-4 py-4 bg-gray-100 border-none rounded-xl text-gray-900 focus:ring-2 focus:ring-green-500 focus:bg-white transition-all duration-200"
-                placeholder="Enter your email"
-                required
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-brand-sub-titles mb-3">
-                Telephone Number
-              </label>
-              <input
-                type="tel"
-                value={telephone}
-                onChange={(e) => setTelephone(e.target.value)}
-                className="w-full px-4 py-4 bg-gray-100 border-none rounded-xl text-gray-900 focus:ring-2 focus:ring-green-500 focus:bg-white transition-all duration-200"
-                placeholder="Enter your telephone number"
-                required
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-brand-sub-titles mb-3">City</label>
-              <input
-                type="text"
-                value={city}
-                onChange={(e) => setCity(e.target.value)}
-                className="w-full px-4 py-4 bg-gray-100 border-none rounded-xl text-gray-900 focus:ring-2 focus:ring-green-500 focus:bg-white transition-all duration-200"
-                placeholder="e.g. Accra"
-                required
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-brand-sub-titles mb-3">Region</label>
-              <input
-                type="text"
-                value={region}
-                onChange={(e) => setRegion(e.target.value)}
-                className="w-full px-4 py-4 bg-gray-100 border-none rounded-xl text-gray-900 focus:ring-2 focus:ring-green-500 focus:bg-white transition-all duration-200"
-                placeholder="e.g. Greater Accra"
-                required
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-brand-sub-titles mb-3">Country</label>
-              <input
-                type="text"
-                value={country}
-                onChange={(e) => setCountry(e.target.value)}
-                className="w-full px-4 py-4 bg-gray-100 border-none rounded-xl text-gray-900 focus:ring-2 focus:ring-green-500 focus:bg-white transition-all duration-200"
-                placeholder="e.g. Ghana"
-                required
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-brand-sub-titles mb-3">Profile Image</label>
-              <div className="flex items-center gap-4">
-                <div className="w-16 h-16 rounded-full bg-gray-100 overflow-hidden flex items-center justify-center">
-                  {imageUrl ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img src={imageUrl} alt="Profile preview" className="w-full h-full object-cover" />
-                  ) : (
-                    <span className="text-sm text-brand-sub-text">No photo</span>
-                  )}
-                </div>
-
-                <label className="bg-gray-100 hover:bg-white transition-all duration-200 text-brand-sub-titles px-4 py-3 rounded-xl cursor-pointer">
-                  Upload photo
-                  <input
-                    type="file"
-                    accept={IMAGE_UPLOAD.ACCEPTED_FORMATS.join(',')}
-                    className="hidden"
-                    onChange={(e) => {
-                      const file = e.target.files?.[0]
-                      e.target.value = ''
-                      void onPickImage(file)
-                    }}
-                  />
-                </label>
-
-                {imageUrl ? (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setImageUrl('')
-                      setImageFile(null)
-                    }}
-                    className="text-brand-hyperlink underline hover:opacity-80"
-                  >
-                    Remove
-                  </button>
-                ) : null}
-              </div>
-              <p className="text-xs text-brand-sub-text mt-2">JPG, PNG, or WebP • Max 5MB</p>
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-brand-sub-titles mb-3">Password</label>
-              <div className="relative">
-                <input
-                  type={showPassword ? 'text' : 'password'}
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  className="w-full px-4 py-4 bg-gray-100 border-none rounded-xl text-gray-900 focus:ring-2 focus:ring-green-500 focus:bg-white transition-all duration-200 pr-12"
-                  placeholder="Create a password"
-                  required
-                  minLength={6}
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-600"
-                >
-                  {showPassword ? <FiEyeOff size={20} /> : <FiEye size={20} />}
-                </button>
-              </div>
-            </div>
-
-            {error && <p className="text-sm text-red-600">{error}</p>}
-
-              <button
-                type="submit"
+                autoComplete="given-name"
+                value={firstName}
+                onChange={(e) => setFirstName(e.target.value)}
+                placeholder="Ama"
                 disabled={loading}
-                className="bg-brand-buttons text-white border-none px-6 py-4 rounded-brand text-base font-semibold cursor-pointer transition-all w-full text-center no-underline inline-block hover:opacity-90 mt-8 text-lg disabled:opacity-60"
-              >
-                {loading ? 'Creating…' : 'Sign Up'}
-              </button>
-            </form>
+                className="w-full rounded-brand border border-gray-200 bg-white px-3 py-3 text-sm text-brand-input-text placeholder-gray-400 outline-none transition focus:border-primary-green focus:ring-2 focus:ring-primary-green/20"
+              />
+              {fieldErrors.first_name && (
+                <p className="text-xs text-red-500">{fieldErrors.first_name}</p>
+              )}
+            </div>
+
+            <div className="flex flex-col gap-1.5">
+              <label htmlFor="last_name" className="text-sm font-medium text-gray-700">Last Name</label>
+              <input
+                id="last_name"
+                type="text"
+                autoComplete="family-name"
+                value={lastName}
+                onChange={(e) => setLastName(e.target.value)}
+                placeholder="Mensah"
+                disabled={loading}
+                className="w-full rounded-brand border border-gray-200 bg-white px-3 py-3 text-sm text-brand-input-text placeholder-gray-400 outline-none transition focus:border-primary-green focus:ring-2 focus:ring-primary-green/20"
+              />
+              {fieldErrors.last_name && (
+                <p className="text-xs text-red-500">{fieldErrors.last_name}</p>
+              )}
+            </div>
           </div>
 
-          <div className="text-center mt-8">
-            <p className="text-brand-sub-text font-normal">
-              Already have an account?{' '}
-              <Link
-                href="/login"
-                className="text-brand-hyperlink underline cursor-pointer hover:opacity-80 font-semibold"
-              >
-                Sign In
-              </Link>
-            </p>
+          {/* Email */}
+          <div className="flex flex-col gap-1.5">
+            <label htmlFor="email" className="text-sm font-medium text-gray-700">Email Address</label>
+            <input
+              id="email"
+              type="email"
+              autoComplete="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder="you@example.com"
+              disabled={loading}
+              className="w-full rounded-brand border border-gray-200 bg-white px-4 py-3 text-brand-input-text placeholder-gray-400 outline-none transition focus:border-primary-green focus:ring-2 focus:ring-primary-green/20"
+            />
+            {fieldErrors.email && (
+              <p className="text-xs text-red-500">{fieldErrors.email}</p>
+            )}
           </div>
+
+          {/* Phone */}
+          <div className="flex flex-col gap-1.5">
+            <label htmlFor="telephone" className="text-sm font-medium text-gray-700">
+              Phone <span className="text-gray-400 font-normal">(optional)</span>
+            </label>
+            <input
+              id="telephone"
+              type="tel"
+              autoComplete="tel"
+              value={telephone}
+              onChange={(e) => setTelephone(e.target.value)}
+              placeholder="+233 24 000 0000"
+              disabled={loading}
+              className="w-full rounded-brand border border-gray-200 bg-white px-4 py-3 text-brand-input-text placeholder-gray-400 outline-none transition focus:border-primary-green focus:ring-2 focus:ring-primary-green/20"
+            />
+          </div>
+
+          {/* Password */}
+          <div className="flex flex-col gap-1.5">
+            <label htmlFor="password" className="text-sm font-medium text-gray-700">Password</label>
+            <div className="relative">
+              <input
+                id="password"
+                type={showPass ? 'text' : 'password'}
+                autoComplete="new-password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="Min. 6 characters"
+                disabled={loading}
+                className="w-full rounded-brand border border-gray-200 bg-white px-4 py-3 pr-12 text-brand-input-text placeholder-gray-400 outline-none transition focus:border-primary-green focus:ring-2 focus:ring-primary-green/20"
+              />
+              <button
+                type="button"
+                aria-label={showPass ? 'Hide password' : 'Show password'}
+                onClick={() => setShowPass((v) => !v)}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition"
+              >
+                {showPass ? <FiEyeOff size={18} /> : <FiEye size={18} />}
+              </button>
+            </div>
+            {fieldErrors.password && (
+              <p className="text-xs text-red-500">{fieldErrors.password}</p>
+            )}
+          </div>
+
+          {/* Submit */}
+          <button
+            id="create-account-submit"
+            type="submit"
+            disabled={loading}
+            className="mt-2 w-full rounded-brand bg-brand-buttons py-4 text-base font-semibold text-white transition hover:opacity-90 active:scale-95 disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            {loading ? 'Creating Account...' : 'Create Account'}
+          </button>
+        </form>
+
+        {/* ── Footer ─────────────────────────────────────────────────────── */}
+        <div className="py-8 text-center">
+          <p className="text-sm text-brand-sub-text">
+            Already have an account?{' '}
+            <Link href={ROUTES.LOGIN} className="font-semibold text-brand-hyperlink hover:underline">
+              Sign In
+            </Link>
+          </p>
         </div>
       </div>
     </div>
-  )
+  );
 }

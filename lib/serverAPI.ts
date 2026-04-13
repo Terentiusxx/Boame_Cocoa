@@ -1,81 +1,120 @@
-import { cookies } from 'next/headers'
-import { isDev, getMockResponse } from './devMode'
+/**
+ * serverAPI.ts
+ * ─────────────────────────────────────────────────────────────
+ * Server-side data fetching helper for Next.js Server Components (RSC).
+ *
+ * Use `serverApi<T>(path, init?)` in async Server Components to fetch data
+ * directly from the backend during SSR — no client-side round-trip needed.
+ *
+ * This is different from backendProxy.ts (which is used in API Route handlers).
+ * Here we throw on error so Server Components can catch and handle gracefully.
+ */
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL
-const COOKIE_NAME = 'auth_token'
+import { cookies } from 'next/headers';
+import { isDev, getMockResponse } from './devMode';
+import { COOKIE_NAME } from './constants';
 
-function requireApiUrl() {
-  if (!API_URL) throw new Error('Missing API url')
-  const trimmed = API_URL.trim().replace(/\/+$/, '')
+// ─── Internal Helpers ─────────────────────────────────────────────────────────
+
+/**
+ * Resolve the backend base URL, with ngrok auto-upgrade.
+ * Shared logic with backendProxy.ts but kept here to avoid circular deps.
+ */
+function requireApiUrl(): string {
+  const raw = process.env.NEXT_PUBLIC_API_URL;
+  if (!raw) throw new Error('NEXT_PUBLIC_API_URL is not set.');
+
+  const trimmed = raw.trim().replace(/\/+$/, '');
 
   try {
-    const url = new URL(trimmed)
-    const isNgrok = /(^|\.)ngrok(-free)?\.app$/i.test(url.hostname)
+    const url = new URL(trimmed);
+    const isNgrok = /(^|\.)ngrok(-free)?\.app$/i.test(url.hostname);
     if (isNgrok && url.protocol === 'http:') {
-      url.protocol = 'https:'
-      return url.toString().replace(/\/+$/, '')
+      url.protocol = 'https:';
+      return url.toString().replace(/\/+$/, '');
     }
-  } catch {
-    // ignore invalid URL; fallback to trimmed
-  }
+  } catch { /* fallthrough */ }
 
-  return trimmed
+  return trimmed;
 }
 
-function assertValidPath(path: string) {
+/**
+ * Validate that a path segment doesn't contain undefined/null/NaN values,
+ * which would silently create invalid routes like "/history/undefined".
+ */
+function assertValidPath(path: string): void {
   if (!path.startsWith('/')) {
-    throw new Error(`serverApi path must start with '/': ${path}`)
+    throw new Error(`serverApi: path must start with '/' — got: "${path}"`);
   }
   if (/\/(undefined|null|NaN)(?=\/|\?|$)/.test(path)) {
-    throw new Error(`serverApi path contains invalid segment: ${path}`)
+    throw new Error(`serverApi: path contains invalid segment — got: "${path}"`);
   }
 }
 
-export async function serverApi<T>(path: string, init?: RequestInit) {
-  assertValidPath(path)
+// ─── Public API ───────────────────────────────────────────────────────────────
 
-  // Dev mode: use hardcoded data instead of backend
+/**
+ * Fetch a backend endpoint from a Server Component and return typed data.
+ * Throws on HTTP errors so the caller can decide how to handle (try/catch).
+ *
+ * In dev mode, returns mock data from devMode.ts instead of hitting the network.
+ *
+ * Generic <T> is the expected shape of the backend's response body.
+ *
+ * @example
+ * // In a Server Component:
+ * const user = await serverApi<User>('/users/me')
+ */
+export async function serverApi<T>(path: string, init?: RequestInit): Promise<T> {
+  assertValidPath(path);
+
+  // ── Dev mode: serve from mock data ───────────────────────────────────────
   if (isDev()) {
-    const method = init?.method || 'GET'
-    let body: unknown = undefined
+    const method = init?.method ?? 'GET';
+
+    let body: unknown;
     if (typeof init?.body === 'string') {
-      try {
-        body = JSON.parse(init.body)
-      } catch {
-        body = undefined
-      }
+      try { body = JSON.parse(init.body); } catch { /* leave undefined */ }
     }
-    const mockResponse = getMockResponse(path, method, body)
-    
-    if (mockResponse) {
-      if (!mockResponse.error) {
-        console.log(`[DEV MODE] ${method} ${path}`, mockResponse.data)
-        return mockResponse.data as T
-      } else {
-        throw new Error(mockResponse.error)
-      }
+
+    const mock = getMockResponse(path, method, body);
+
+    if (!mock) {
+      throw new Error(`[DEV] No mock data for ${method} ${path}`);
     }
-    // If no mock found, throw error
-    throw new Error(`[DEV MODE] No mock data for ${method} ${path}`)
+    if (mock.error) {
+      throw new Error(mock.error);
+    }
+
+    console.log(`[DEV] serverApi ${method} ${path}`, mock.data);
+    return mock.data as T;
   }
 
-  // Production: use real backend
-  const baseUrl = requireApiUrl()
-  const token = (await cookies()).get(COOKIE_NAME)?.value
+  // ── Production: call real backend ─────────────────────────────────────────
+  const baseUrl = requireApiUrl();
+  const token = (await cookies()).get(COOKIE_NAME)?.value;
+
+  const headers = new Headers(init?.headers);
+
+  // Inject bearer token if present
+  if (token && !headers.has('Authorization')) {
+    const trimmed = token.trim();
+    headers.set(
+      'Authorization',
+      /^bearer\s+/i.test(trimmed) ? trimmed : `Bearer ${trimmed}`
+    );
+  }
 
   const res = await fetch(`${baseUrl}${path}`, {
     ...init,
-    headers: {
-      ...(init?.headers || {}),
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
-    },
-    cache: 'no-store',
-  })
+    headers,
+    cache: 'no-store', // Server Components: never serve stale data
+  });
 
   if (!res.ok) {
-    const text = await res.text().catch(() => '')
-    throw new Error(text || `Request failed: ${res.status}`)
+    const text = await res.text().catch(() => '');
+    throw new Error(text || `Request failed: ${res.status} ${res.statusText}`);
   }
 
-  return (await res.json()) as T
+  return res.json() as Promise<T>;
 }

@@ -1,8 +1,13 @@
+/**
+ * VoiceRecorder.tsx
+ * ─────────────────────────────────────────────────────────────
+ * AI assistant-style voice interface.
+ * Single pulsing orb button — minimal text, maximum atmosphere.
+ */
 'use client';
 
-import { useRef, useState, useEffect } from 'react';
-import { FiMic } from 'react-icons/fi';
-import { LuMessageCircle } from 'react-icons/lu';
+import { useRef, useState, useEffect, useCallback } from 'react';
+import { FiMic, FiSquare } from 'react-icons/fi';
 
 interface VoiceRecorderProps {
   onRecordingComplete: (blob: Blob) => void;
@@ -10,246 +15,158 @@ interface VoiceRecorderProps {
 }
 
 export default function VoiceRecorder({ onRecordingComplete, isSubmitting }: VoiceRecorderProps) {
-  const [isRecording, setIsRecording] = useState(false);
-  const [recordingTime, setRecordingTime] = useState(0);
-  const [waveformBars, setWaveformBars] = useState<number[]>(Array(12).fill(0));
+  const [isRecording,   setIsRecording]   = useState(false);
+  const [seconds,       setSeconds]       = useState(0);
+  const [amplitude,     setAmplitude]     = useState(0); // 0–1 live volume level
+
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
-  const streamRef = useRef<MediaStream | null>(null);
-  const analyserRef = useRef<AnalyserNode | null>(null);
-  const chunksRef = useRef<Blob[]>([]);
-  const timerRef = useRef<NodeJS.Timeout | null>(null);
-  const animationRef = useRef<number | null>(null);
-  const audioContextRef = useRef<AudioContext | null>(null);
-  const shouldSubmitRef = useRef(true);
+  const streamRef        = useRef<MediaStream | null>(null);
+  const analyserRef      = useRef<AnalyserNode | null>(null);
+  const audioCtxRef      = useRef<AudioContext | null>(null);
+  const chunksRef        = useRef<Blob[]>([]);
+  const timerRef         = useRef<ReturnType<typeof setInterval> | null>(null);
+  const frameRef         = useRef<number | null>(null);
+  const submitRef        = useRef(true);
 
-  const stopRecorderSafely = () => {
-    try {
-      if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
-        mediaRecorderRef.current.stop();
-      }
-    } catch {
-      // Ignore stop race conditions during teardown.
-    }
-  };
+  const cleanup = useCallback((skipSubmit = false) => {
+    if (skipSubmit) submitRef.current = false;
 
-  const releaseMediaResources = (skipSubmit = false) => {
-    if (skipSubmit) {
-      shouldSubmitRef.current = false;
-    }
+    if (frameRef.current)  { cancelAnimationFrame(frameRef.current); frameRef.current = null; }
+    if (timerRef.current)  { clearInterval(timerRef.current); timerRef.current = null; }
+    if (streamRef.current) { streamRef.current.getTracks().forEach((t) => t.stop()); streamRef.current = null; }
+    if (audioCtxRef.current) { void audioCtxRef.current.close(); audioCtxRef.current = null; }
 
-    if (animationRef.current) {
-      cancelAnimationFrame(animationRef.current);
-      animationRef.current = null;
-    }
-
-    if (timerRef.current) {
-      clearInterval(timerRef.current);
-      timerRef.current = null;
-    }
-
-    if (streamRef.current) {
-      streamRef.current.getTracks().forEach((track) => track.stop());
-      streamRef.current = null;
-    }
-
+    analyserRef.current    = null;
     mediaRecorderRef.current = null;
-
-    if (audioContextRef.current) {
-      void audioContextRef.current.close();
-      audioContextRef.current = null;
-    }
-
-    analyserRef.current = null;
     setIsRecording(false);
-    setRecordingTime(0);
-    setWaveformBars(Array(12).fill(0));
-  };
+    setSeconds(0);
+    setAmplitude(0);
+  }, []);
+
+  useEffect(() => () => { cleanup(true); }, [cleanup]);
 
   const startRecording = async () => {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       streamRef.current = stream;
 
-      // Setup audio context for visualization
-      const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
-      audioContextRef.current = audioContext;
-      const source = audioContext.createMediaStreamSource(stream);
-      const analyser = audioContext.createAnalyser();
-      analyser.fftSize = 256;
+      const AudioCtx = window.AudioContext ?? (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
+      const ctx      = new AudioCtx();
+      audioCtxRef.current   = ctx;
+      const source   = ctx.createMediaStreamSource(stream);
+      const analyser = ctx.createAnalyser();
+      analyser.fftSize = 128;
       analyserRef.current = analyser;
       source.connect(analyser);
 
-      const mediaRecorder = new MediaRecorder(stream);
-      mediaRecorderRef.current = mediaRecorder;
+      const mr = new MediaRecorder(stream);
+      mediaRecorderRef.current = mr;
       chunksRef.current = [];
+      submitRef.current = true;
 
-      mediaRecorder.ondataavailable = (event) => {
-        chunksRef.current.push(event.data);
+      mr.ondataavailable = (e) => { chunksRef.current.push(e.data); };
+      mr.onstop = () => {
+        if (!submitRef.current) { submitRef.current = true; return; }
+        onRecordingComplete(new Blob(chunksRef.current, { type: 'audio/webm' }));
+        cleanup();
       };
 
-      mediaRecorder.onstop = () => {
-        if (!shouldSubmitRef.current) {
-          shouldSubmitRef.current = true;
-          releaseMediaResources();
-          return;
-        }
-
-        const blob = new Blob(chunksRef.current, { type: 'audio/webm' });
-        onRecordingComplete(blob);
-        releaseMediaResources();
-      };
-
-      mediaRecorder.start();
+      mr.start();
       setIsRecording(true);
-      setRecordingTime(0);
 
-      // Start animation loop for waveform
-      const updateWaveform = () => {
-        if (analyserRef.current) {
-          const dataArray = new Uint8Array(analyserRef.current.frequencyBinCount);
-          analyserRef.current.getByteFrequencyData(dataArray);
-          
-          const bars = Array(12).fill(0).map((_, i) => {
-            const index = Math.floor((i / 12) * dataArray.length);
-            return (dataArray[index] / 255) * 100;
-          });
-          setWaveformBars(bars);
-        }
-        animationRef.current = requestAnimationFrame(updateWaveform);
+      // Volume animation loop
+      const tick = () => {
+        if (!analyserRef.current) return;
+        const data = new Uint8Array(analyserRef.current.frequencyBinCount);
+        analyserRef.current.getByteFrequencyData(data);
+        const avg = data.reduce((s, v) => s + v, 0) / data.length;
+        setAmplitude(avg / 128); // normalise 0–1
+        frameRef.current = requestAnimationFrame(tick);
       };
-      animationRef.current = requestAnimationFrame(updateWaveform);
+      frameRef.current = requestAnimationFrame(tick);
 
-      timerRef.current = setInterval(() => {
-        setRecordingTime((t) => t + 1);
-      }, 1000);
-    } catch (error) {
-      console.error('Error accessing microphone:', error);
+      // Timer
+      timerRef.current = setInterval(() => setSeconds((s) => s + 1), 1000);
+
+    } catch {
+      // Microphone denied or unavailable
     }
   };
 
   const stopRecording = () => {
-    if (mediaRecorderRef.current && isRecording) {
-      stopRecorderSafely();
+    if (mediaRecorderRef.current?.state !== 'inactive') {
+      try { mediaRecorderRef.current?.stop(); } catch { /* ignore race */ }
     }
   };
 
-  useEffect(() => {
-    return () => {
-      if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
-        releaseMediaResources(true);
-        stopRecorderSafely();
-      } else {
-        releaseMediaResources();
-      }
-    };
-  }, []);
+  const fmt = (s: number) => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
 
-  const formatTime = (seconds: number) => {
-    const mins = Math.floor(seconds / 60);
-    const secs = seconds % 60;
-    return `${mins}:${secs < 10 ? '0' : ''}${secs}`;
-  };
+  // Orb size pulses with live amplitude when recording
+  const orbScale = isRecording ? 1 + amplitude * 0.35 : 1;
 
   return (
-    <div className="w-full h-full flex flex-col items-center justify-between py-8">
-      {/* Waveform Visualization */}
-      <div className="w-full h-24 flex items-center justify-center gap-1 mb-8 relative">
-        {/* Gradient background for waveform */}
-        <svg className="absolute inset-0 w-full h-full" viewBox="0 0 300 80" preserveAspectRatio="none">
-          <defs>
-            <linearGradient id="waveGradient" x1="0%" y1="0%" x2="0%" y2="100%">
-              <stop offset="0%" stopColor="rgba(100, 100, 100, 0.3)" />
-              <stop offset="50%" stopColor="rgba(100, 100, 100, 0.1)" />
-              <stop offset="100%" stopColor="rgba(100, 100, 100, 0)" />
-            </linearGradient>
-          </defs>
-          <path
-            d="M 0 40 Q 20 20, 40 40 T 80 40 T 120 40 T 160 40 T 200 40 T 240 40 T 300 40 L 300 80 L 0 80 Z"
-            fill="url(#waveGradient)"
-          />
-        </svg>
-        
-        {/* Animated bars */}
-        <div className="relative z-10 flex items-center justify-center gap-1.5 h-full">
-          {waveformBars.map((height, i) => (
-            <div
-              key={i}
-              className="w-1 bg-gradient-to-t from-gray-700 to-gray-500 rounded-full transition-all"
-              style={{
-                height: isRecording ? `${Math.max(4, height)}px` : '4px',
-              }}
-            />
-          ))}
-        </div>
-      </div>
+    <div className="flex flex-col items-center gap-8 w-full py-4">
 
-      {/* Center Microphone Button with Ripples */}
-      <div className="flex-1 flex items-center justify-center mb-12">
-        <div className="relative w-40 h-40 flex items-center justify-center">
-          {/* Ripple circles */}
-          {isRecording && (
-            <>
-              <div
-                className="absolute inset-0 border-2 border-blue-400 rounded-full opacity-0"
-                style={{
-                  animation: 'ripple 1.5s ease-out infinite',
-                }}
-              />
-              <div
-                className="absolute inset-0 border-2 border-blue-400 rounded-full opacity-0"
-                style={{
-                  animation: 'ripple 1.5s ease-out infinite 0.5s',
-                }}
-              />
-            </>
-          )}
-
-          {/* Main button */}
-          <button
-            onClick={isRecording ? stopRecording : startRecording}
-            disabled={isSubmitting}
-            className={`relative w-32 h-32 rounded-full flex items-center justify-center transition-all duration-300 shadow-lg ${
-              isRecording
-                ? 'bg-red-600 hover:bg-red-700 scale-100'
-                : 'bg-gradient-to-br from-blue-600 to-blue-700 hover:shadow-xl scale-100 hover:scale-105'
-            } disabled:opacity-50 disabled:cursor-not-allowed`}
-          >
-            <FiMic size={56} className="text-white" />
-          </button>
-
-          {/* Side action icons */}
-          <button className="absolute left-0 top-1/2 -translate-y-1/2 w-12 h-12 rounded-full border-2 border-gray-400 flex items-center justify-center hover:bg-gray-100 transition-colors">
-            <LuMessageCircle size={24} className="text-gray-600" />
-          </button>
-
-        </div>
-      </div>
-
-      {/* Recording time and text */}
-      <div className="flex flex-col items-center gap-2 mb-8">
-        {isRecording && (
-          <div className="flex items-center gap-2 mb-2">
-            <div className="w-2 h-2 bg-red-600 rounded-full animate-pulse"></div>
-            <span className="text-sm font-semibold text-gray-700">{formatTime(recordingTime)}</span>
-          </div>
+      {/* ── Status label ──────────────────────────────────────────────── */}
+      <div className="text-center h-8 flex items-center gap-2">
+        {isRecording ? (
+          <>
+            <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
+            <span className="text-lg font-semibold tabular-nums text-gray-900">{fmt(seconds)}</span>
+          </>
+        ) : (
+          <span className="text-sm text-gray-400">Tap to speak</span>
         )}
-        <p className="text-lg font-semibold text-gray-900">
-          {isRecording ? 'Recording...' : 'Start Recording'}
-        </p>
       </div>
 
-      <style>{`
-        @keyframes ripple {
-          from {
-            transform: scale(1);
-            opacity: 0.8;
+      {/* ── Orb button ────────────────────────────────────────────────── */}
+      <div className="relative flex items-center justify-center">
+        {/* Expanding pulse rings when recording */}
+        {isRecording && (
+          <>
+            <div className="absolute w-40 h-40 rounded-full bg-primary-green/10 animate-ping" style={{ animationDuration: '1.5s' }} />
+            <div className="absolute w-52 h-52 rounded-full bg-primary-green/5 animate-ping" style={{ animationDuration: '2s' }} />
+          </>
+        )}
+
+        {/* Live amplitude ring */}
+        <div
+          className="absolute rounded-full bg-primary-green/20 transition-all duration-75"
+          style={{
+            width:  `${120 + amplitude * 60}px`,
+            height: `${120 + amplitude * 60}px`,
+          }}
+        />
+
+        {/* Main orb */}
+        <button
+          type="button"
+          id="voice-record-btn"
+          onClick={isRecording ? stopRecording : startRecording}
+          disabled={isSubmitting}
+          aria-label={isRecording ? 'Stop recording' : 'Start voice recording'}
+          style={{ transform: `scale(${orbScale})`, transition: 'transform 0.08s ease-out' }}
+          className={
+            'relative z-10 w-28 h-28 rounded-full flex items-center justify-center shadow-xl focus-visible:outline-none focus-visible:ring-4 transition-colors duration-300 ' +
+            (isRecording
+              ? 'bg-gradient-to-br from-red-500 to-red-600 focus-visible:ring-red-300'
+              : 'bg-gradient-to-br from-primary-green to-green-700 focus-visible:ring-primary-green/40') +
+            (isSubmitting ? ' opacity-40 cursor-not-allowed' : '')
           }
-          to {
-            transform: scale(1.6);
-            opacity: 0;
+        >
+          {isRecording
+            ? <FiSquare size={32} className="text-white" fill="white" />
+            : <FiMic    size={36} className="text-white" />
           }
-        }
-      `}</style>
+        </button>
+      </div>
+
+      {/* ── Instruction ───────────────────────────────────────────────── */}
+      <p className="text-sm text-gray-400 text-center max-w-[200px] leading-relaxed">
+        {isRecording
+          ? 'Listening… tap to stop'
+          : 'Describe what you see on your cocoa plant'}
+      </p>
     </div>
   );
 }

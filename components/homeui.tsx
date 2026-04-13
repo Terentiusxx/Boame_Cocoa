@@ -1,11 +1,20 @@
-"use client";
+/**
+ * homeui.tsx
+ * ─────────────────────────────────────────────────────────────
+ * Home page UI component.
+ * Receives server-fetched data (recentScans, firstName) as props —
+ * the page.tsx Server Component handles all data fetching.
+ *
+ * NOTE: Do NOT render BottomNavigation here. It is already handled
+ * globally by ConditionalNavbar in app/layout.tsx.
+ */
+'use client';
 
-import { useState } from "react";
-import Link from "next/link";
-import DiseaseCard from "@/components/DiseaseCard";
-import CheckCocoaCard from "@/components/CheckCocoaCard";
-import BottomNavigation from "@/components/layout/navbar";
-import IconComponent from "@/components/IconComponent";
+import { useState } from 'react';
+import Link from 'next/link';
+import DiseaseCard from '@/components/DiseaseCard';
+import CheckCocoaCard from '@/components/CheckCocoaCard';
+import IconComponent from '@/components/IconComponent';
 import {
   Dialog,
   DialogClose,
@@ -13,110 +22,113 @@ import {
   DialogHeader,
   DialogTitle,
   DialogTrigger,
-} from "@/components/ui/dialog";
-import { DiseaseData } from "@/lib/types"
+} from '@/components/ui/dialog';
+import type { DiseaseData } from '@/lib/types';
+import { extractErrorMessage, formatDateTime } from '@/lib/utils';
+import { ROUTES } from '@/lib/constants';
+
+// ─── Types ────────────────────────────────────────────────────────────────────
 
 type NotificationItem = {
-  id: string
-  title: string
-  message: string
-  createdAt?: string
-  isRead?: boolean
-}
+  id: string;
+  title: string;
+  message: string;
+  createdAt?: string;
+  isRead: boolean;
+};
 
-function mapNotifications(payload: unknown): NotificationItem[] {
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+
+/** Normalise raw notification API response to a flat array of NotificationItems */
+function parseNotifications(payload: unknown): NotificationItem[] {
+  // Backend may return the array directly or wrapped in { data: [...] }
   const raw = Array.isArray(payload)
     ? payload
-    : payload && typeof payload === "object" && "data" in payload
-      ? (payload as { data?: unknown }).data
-      : []
+    : Array.isArray((payload as Record<string, unknown>)?.data)
+    ? (payload as Record<string, unknown[]>).data
+    : [];
 
-  if (!Array.isArray(raw)) return []
-
-  return raw.map((item, index) => {
-    const i = (item ?? {}) as Record<string, unknown>
-
-    return {
-      id: String(i.notification_id ?? i.id ?? index + 1),
-      title: String(i.title ?? "Notification"),
-      message: String(i.message ?? i.content ?? "No details available."),
-      createdAt: typeof i.created_at === "string" ? i.created_at : undefined,
-      isRead: Boolean(i.is_read),
-    }
-  })
+  return (raw as Record<string, unknown>[]).map((item, i) => ({
+    id: String(item.notification_id ?? item.id ?? i + 1),
+    title: String(item.title ?? 'Notification'),
+    message: String(item.message ?? item.content ?? 'No details available.'),
+    createdAt: typeof item.created_at === 'string' ? item.created_at : undefined,
+    isRead: Boolean(item.is_read),
+  }));
 }
 
-export default function Home({
+// ─── Component ────────────────────────────────────────────────────────────────
+
+export default function HomeUI({
   recentScans,
   firstName,
 }: {
-  recentScans: DiseaseData[]
-  firstName?: string | null
+  recentScans: DiseaseData[];
+  firstName?: string | null;
 }) {
-  const [isDialogOpen, setIsDialogOpen] = useState(false)
-  const [isLoadingNotifications, setIsLoadingNotifications] = useState(false)
-  const [notificationsError, setNotificationsError] = useState<string | null>(null)
-  const [notifications, setNotifications] = useState<NotificationItem[]>([])
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [notifications, setNotifications] = useState<NotificationItem[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
+  /** Fetch notifications when the bell dialog opens */
   const fetchNotifications = async () => {
-    setIsLoadingNotifications(true)
-    setNotificationsError(null)
+    setLoading(true);
+    setError(null);
 
     try {
-      const response = await fetch("/api/notifications", {
-        method: "GET",
-        cache: "no-store",
-      })
-
-      if (!response.ok) {
-        throw new Error("Unable to fetch notifications")
-      }
-
-      const payload = await response.json()
-      setNotifications(mapNotifications(payload))
-    } catch {
-      setNotificationsError("Failed to load notifications. Please try again.")
+      const res = await fetch('/api/notifications', { cache: 'no-store' });
+      if (!res.ok) throw new Error('Failed to load notifications');
+      const payload = await res.json();
+      setNotifications(parseNotifications(payload));
+    } catch (err) {
+      setError(extractErrorMessage(err, 'Failed to load notifications. Please try again.'));
     } finally {
-      setIsLoadingNotifications(false)
+      setLoading(false);
     }
-  }
+  };
+
+  // Count unread for the red dot indicator
+  const unreadCount = notifications.filter((n) => !n.isRead).length;
 
   return (
     <div className="max-w-mobile mx-auto min-h-screen bg-background relative shadow-mobile">
       <div className="px-6 pb-24 pt-8">
-        {/* Greeting */}
+
+        {/* ── Greeting + Action Bar ───────────────────────────────────────── */}
         <div className="mb-6 flex items-center justify-between gap-4">
           <h1 className="text-3xl font-bold text-brand-text-titles">
             Hey{firstName ? ` ${firstName}` : ''},
           </h1>
 
           <div className="flex items-center gap-2">
+            {/* Messages icon */}
             <Link
-              href="/messages"
+              href={ROUTES.MESSAGES}
               aria-label="Open messages"
-              className="flex h-11 w-11 items-center justify-center rounded-full bg-white text-brand-green-dark shadow-sm transition hover:bg-brand-green-light/20"
+              className="flex h-11 w-11 items-center justify-center rounded-full bg-white text-brand-buttons shadow-sm transition hover:bg-green-50"
             >
               <IconComponent icon="messages" size={20} />
             </Link>
 
+            {/* Notifications bell */}
             <Dialog
-              open={isDialogOpen}
+              open={dialogOpen}
               onOpenChange={(open) => {
-                setIsDialogOpen(open)
-                if (open) {
-                  void fetchNotifications()
-                }
+                setDialogOpen(open);
+                if (open) void fetchNotifications();
               }}
             >
               <DialogTrigger asChild>
                 <button
                   type="button"
                   aria-label="Open notifications"
-                  className="relative flex h-11 w-11 items-center justify-center rounded-full bg-white text-brand-green-dark shadow-sm transition hover:bg-brand-green-light/20"
+                  className="relative flex h-11 w-11 items-center justify-center rounded-full bg-white text-brand-buttons shadow-sm transition hover:bg-green-50"
                 >
                   <IconComponent icon="bell" size={20} />
-                  {notifications.length > 0 && (
-                    <span className="absolute right-1.5 top-1.5 h-2.5 w-2.5 rounded-full bg-red-500" />
+                  {/* Red dot for unread notifications */}
+                  {unreadCount > 0 && (
+                    <span className="absolute right-1.5 top-1.5 h-2.5 w-2.5 rounded-full bg-urgency-high" />
                   )}
                 </button>
               </DialogTrigger>
@@ -133,28 +145,28 @@ export default function Home({
                 </DialogHeader>
 
                 <div className="max-h-80 space-y-3 overflow-y-auto pr-1">
-                  {isLoadingNotifications && (
+                  {loading && (
                     <p className="text-sm text-gray-500">Loading notifications...</p>
                   )}
 
-                  {!isLoadingNotifications && notificationsError && (
-                    <p className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-600">{notificationsError}</p>
+                  {!loading && error && (
+                    <p className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-600">{error}</p>
                   )}
 
-                  {!isLoadingNotifications && !notificationsError && notifications.length === 0 && (
+                  {!loading && !error && notifications.length === 0 && (
                     <p className="text-sm text-gray-500">No notifications yet.</p>
                   )}
 
-                  {!isLoadingNotifications && !notificationsError && notifications.map((notification) => (
+                  {!loading && !error && notifications.map((n) => (
                     <div
-                      key={notification.id}
+                      key={n.id}
                       className="rounded-xl border border-gray-100 bg-gray-50 px-3 py-2"
                     >
-                      <p className="text-sm font-semibold text-brand-text-titles">{notification.title}</p>
-                      <p className="mt-1 text-sm text-gray-600">{notification.message}</p>
-                      {notification.createdAt && (
+                      <p className="text-sm font-semibold text-brand-text-titles">{n.title}</p>
+                      <p className="mt-1 text-sm text-gray-600">{n.message}</p>
+                      {n.createdAt && (
                         <p className="mt-1 text-xs text-gray-400">
-                          {new Date(notification.createdAt).toLocaleString()}
+                          {formatDateTime(n.createdAt)}
                         </p>
                       )}
                     </div>
@@ -164,32 +176,30 @@ export default function Home({
             </Dialog>
           </div>
         </div>
-        
-        {/* Check Your Cocoa Card */}
+
+        {/* ── Scan Prompt Card ────────────────────────────────────────────── */}
         <CheckCocoaCard />
-        
-        {/* Previous Scans Section */}
+
+        {/* ── Recent Scans ────────────────────────────────────────────────── */}
         <div className="mt-8">
-          <h2 className="text-base font-bold text-brand-text-titles mb-4">
-            Previous Scans
-          </h2>
-          
-          {recentScans.map((disease, index) => (
-            <DiseaseCard 
-              key={index} 
-              id={disease.id}
-              name={disease.name}
-              urgency={disease.urgency}
-              image={disease.image}
-              urgencyClass={disease.urgencyClass}
+          <h2 className="text-base font-bold text-brand-text-titles mb-4">Previous Scans</h2>
+
+          {recentScans.length === 0 && (
+            <p className="text-sm text-brand-sub-text">No scans yet. Tap the scan button to get started.</p>
+          )}
+
+          {recentScans.map((scan) => (
+            <DiseaseCard
+              key={scan.id}
+              id={scan.id}
+              name={scan.name}
+              urgency={scan.urgency}
+              image={scan.image}
+              urgencyClass={scan.urgencyClass}
             />
           ))}
-          
         </div>
       </div>
-      
-      {/* Bottom Navigation */}
-      <BottomNavigation />
     </div>
   );
 }

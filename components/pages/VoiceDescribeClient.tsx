@@ -1,151 +1,158 @@
+/**
+ * VoiceDescribeClient.tsx
+ * ─────────────────────────────────────────────────────────────
+ * AI assistant voice screen — minimal, atmospheric, focused.
+ * Records symptoms then sends audio to the AI endpoint.
+ */
 'use client';
 
-import { useRouter, useSearchParams } from 'next/navigation';
 import { useState } from 'react';
+import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import { FiArrowLeft, FiChevronRight } from 'react-icons/fi';
 import VoiceRecorder from '@/components/VoiceRecorder';
-import { FiMic, FiMenu, FiBell, FiMessageCircle, FiX } from 'react-icons/fi';
+import { ROUTES, SESSION_KEYS } from '@/lib/constants';
+import { extractErrorMessage } from '@/lib/utils';
 
-export default function VoiceDescribeClient() {
+export default function VoiceDescribeClient({ scanId }: { scanId?: string }) {
   const router = useRouter();
-  const searchParams = useSearchParams();
-  const scanId = searchParams.get('scan_id');
 
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [voiceError, setVoiceError] = useState<string | null>(null);
-  const [step, setStep] = useState<'initial' | 'recording'>('initial');
+  const [submitting, setSubmitting] = useState(false);
+  const [error,      setError]      = useState<string | null>(null);
+  const [done,       setDone]       = useState(false);
 
-  const handleVoiceSubmit = async (audioBlob: Blob) => {
-    setIsSubmitting(true);
-    setVoiceError(null);
+  const handleRecordingComplete = async (blob: Blob) => {
+    setError(null);
+    setSubmitting(true);
 
     try {
       const form = new FormData();
-      form.append('file', audioBlob, 'description.webm');
+      form.append('file', blob, 'voice.webm');
 
-      const response = await fetch('/api/ai/voice-diagnose', {
-        method: 'POST',
-        body: form,
-      });
+      const endpoint = scanId
+        ? `/api/ai/voice-diagnose?scan_id=${encodeURIComponent(scanId)}`
+        : '/api/ai/voice-diagnose';
 
-      if (!response.ok) {
-        const result = await response.json().catch(() => null);
-        setVoiceError(result?.message || 'Failed to process voice description');
-        setIsSubmitting(false);
+      const res     = await fetch(endpoint, { method: 'POST', body: form, credentials: 'include' });
+      const payload = await res.json().catch(() => null) as Record<string, unknown> | null;
+
+      if (!res.ok) {
+        setError(extractErrorMessage(payload, 'Voice submission failed. Please try again.'));
         return;
       }
 
-      // Mark voice step as completed
-      const nonce = sessionStorage.getItem('scan_nonce');
-      if (nonce) {
-        sessionStorage.setItem(`voice_completed_${nonce}`, '1');
+      if (payload?.disease_id || payload?.confidence_score) {
+        sessionStorage.setItem(SESSION_KEYS.SCAN_PREDICTION, JSON.stringify({
+          disease_id:       payload.disease_id       ?? null,
+          confidence_score: payload.confidence_score ?? null,
+          created_at:       new Date().toISOString(),
+        }));
       }
 
-      // Continue to results after voice submission
-      if (scanId) {
-        router.push(`/results/${scanId}`);
-      } else {
-        router.push('/results/unknown');
-      }
-    } catch (error) {
-      setVoiceError(error instanceof Error ? error.message : 'Failed to process voice');
-      setIsSubmitting(false);
+      setDone(true);
+      setTimeout(() => router.replace(ROUTES.RESULTS), 900);
+    } catch (err) {
+      setError(extractErrorMessage(err, 'Connection failed. Please try again.'));
+    } finally {
+      setSubmitting(false);
     }
-  };
-
-  const handleSkip = () => {
-    // Mark voice step as completed (skipped)
-    const nonce = sessionStorage.getItem('scan_nonce');
-    if (nonce) {
-      sessionStorage.setItem(`voice_completed_${nonce}`, '1');
-    }
-
-    if (scanId) {
-      router.push(`/results/${scanId}`);
-    } else {
-      router.push('/results/unknown');
-    }
-  };
-
-  const handleCancel = () => {
-    router.replace('/home');
   };
 
   return (
-    <div className="max-w-mobile mx-auto min-h-screen bg-white flex flex-col relative shadow-mobile">
-      {/* Header */}
-      <div className="flex items-center justify-between px-4 py-4 border-b border-gray-100">
+    <div className="max-w-mobile mx-auto min-h-screen bg-background relative shadow-mobile flex flex-col">
+
+      {/* Top bar */}
+      <div className="flex items-center justify-between px-5 pt-12 pb-4">
         <button
           type="button"
-          onClick={() => router.replace('/home')}
-          className="flex h-9 w-9 items-center justify-center rounded-full text-gray-700 transition hover:bg-black/5 hover:opacity-80"
-          aria-label="Exit"
+          onClick={() => router.back()}
+          aria-label="Go back"
+          className="w-9 h-9 rounded-full bg-gray-100 flex items-center justify-center text-gray-600 hover:bg-gray-200 transition"
         >
-          {step === 'recording' ? <FiX size={16} /> : <FiMenu size={24} />}
+          <FiArrowLeft size={18} />
         </button>
-        <h1 className="text-center text-xl font-semibold text-gray-900">New Recording</h1>
-        <div className="flex items-center gap-3">
-          <Link href="/messages" className="text-gray-700 hover:opacity-80 transition-opacity" aria-label="Messages">
-            <FiMessageCircle size={22} />
-          </Link>
-          <button className="text-gray-700 hover:opacity-80 transition-opacity" aria-label="Notifications">
-            <FiBell size={24} />
-          </button>
-        </div>
+
+        {/* Skip to results */}
+        <Link
+          href={ROUTES.RESULTS}
+          className="text-sm text-brand-hyperlink font-medium flex items-center gap-1 hover:opacity-70 transition"
+        >
+          Skip <FiChevronRight size={15} />
+        </Link>
       </div>
 
-      {/* Main Content */}
-      <div className="flex-1 flex flex-col items-center justify-center px-4">
-        {step === 'initial' ? (
-          /* Initial State */
-          <div className="w-full flex flex-col items-center">
-            <div className="mb-12 text-center">
-              <h2 className="text-3xl font-bold text-gray-900 mb-4">Describe Your Plant</h2>
-              <p className="text-gray-600 text-base max-w-sm mx-auto leading-relaxed">
-                Help us understand what you&apos;re seeing. Describe any symptoms, colors, or issues you&apos;ve noticed.
-              </p>
-            </div>
+      {/* Main content — vertically centred */}
+      <div className="flex-1 flex flex-col items-center justify-center px-8 pb-12">
 
-            {voiceError && (
-              <div className="bg-red-50 text-red-700 p-4 rounded-lg mb-8 text-sm w-full max-w-sm border border-red-200">
-                {voiceError}
-              </div>
-            )}
-
-            <button
-              onClick={() => setStep('recording')}
-              disabled={isSubmitting}
-              className="mb-12 px-12 py-4 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-full transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed hover:shadow-lg"
-            >
-              Start Recording
-            </button>
-
-            <button
-              onClick={handleSkip}
-              disabled={isSubmitting}
-              className="text-blue-600 font-semibold hover:opacity-80 disabled:opacity-50 disabled:cursor-not-allowed transition-opacity"
-            >
-              Skip for now
-            </button>
+        {/* AI avatar orb at top */}
+        <div className="mb-6 relative">
+          <div className="w-16 h-16 rounded-full bg-gradient-to-br from-primary-green to-green-700 flex items-center justify-center shadow-lg">
+            {/* Leaf / AI icon */}
+            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M11 20A7 7 0 0 1 4 13V6a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v7a7 7 0 0 1-7 7Z" />
+              <path d="M12 20v-9" />
+            </svg>
           </div>
+          {/* Subtle glow */}
+          <div className="absolute inset-0 rounded-full bg-primary-green/20 blur-xl scale-150 -z-10" />
+        </div>
+
+        {/* Heading */}
+        {!done ? (
+          <>
+            <h1 className="text-2xl font-bold text-gray-900 mb-2 text-center">
+              Tell me what you see
+            </h1>
+            <p className="text-gray-400 text-sm text-center mb-10 leading-relaxed max-w-[220px]">
+              Describe the condition of your cocoa leaves, pods, or stems
+            </p>
+          </>
         ) : (
-          /* Recording State */
-          <div className="w-full h-full flex items-center justify-center">
-            <VoiceRecorder
-              onRecordingComplete={handleVoiceSubmit}
-              isSubmitting={isSubmitting}
-            />
+          <>
+            <h1 className="text-2xl font-bold text-gray-900 mb-2 text-center">Got it!</h1>
+            <p className="text-gray-400 text-sm text-center mb-10">Analysing your description…</p>
+          </>
+        )}
+
+        {/* Error */}
+        {error && (
+          <div role="alert" className="mb-6 w-full max-w-xs rounded-xl bg-red-50 border border-red-200 px-4 py-3 text-sm text-red-700 text-center">
+            {error}
+          </div>
+        )}
+
+        {/* Voice recorder orb */}
+        {!done && (
+          <VoiceRecorder
+            onRecordingComplete={handleRecordingComplete}
+            isSubmitting={submitting}
+          />
+        )}
+
+        {/* Submitting indicator */}
+        {submitting && (
+          <div className="mt-6 flex items-center gap-2 text-sm text-gray-400">
+            <div className="w-4 h-4 border-2 border-primary-green border-t-transparent rounded-full animate-spin" />
+            Sending to AI…
+          </div>
+        )}
+
+        {/* Done state checkmark */}
+        {done && (
+          <div className="w-20 h-20 rounded-full bg-green-50 flex items-center justify-center">
+            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#16a34a" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M20 6 9 17l-5-5" />
+            </svg>
           </div>
         )}
       </div>
 
-      {/* Bottom Navigation Placeholder */}
-      <div className="h-20 border-t border-gray-100 flex items-center justify-around bg-gray-50">
-        <button className="flex flex-col items-center gap-1 text-gray-700 hover:opacity-80">
-          <FiMic size={24} />
-          <span className="text-xs font-medium">Recording</span>
-        </button>
-      </div>
+      {/* Bottom hint */}
+      {!done && !submitting && (
+        <div className="pb-10 text-center">
+          <p className="text-xs text-gray-300">Your voice is processed securely by our AI</p>
+        </div>
+      )}
     </div>
   );
 }

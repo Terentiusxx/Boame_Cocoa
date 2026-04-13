@@ -1,82 +1,66 @@
+/**
+ * ProcessingClient.tsx
+ * ─────────────────────────────────────────────────────────────
+ * Shown while the AI processes the captured image.
+ * Reads scan_image from sessionStorage, POSTs to /api/ai/predict,
+ * saves the result, then navigates to the voice-describe or results page.
+ *
+ * Session storage keys (defined in lib/constants.ts):
+ *   scan_image      — blob: or data: URL of the captured image
+ *   scan_id         — numeric scan ID returned by backend
+ *   scan_prediction — JSON { disease_id, confidence_score, created_at }
+ */
 'use client';
 
 import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { FiCheck } from 'react-icons/fi';
+import { SESSION_KEYS, ROUTES } from '@/lib/constants';
 
+// ─── Helpers ──────────────────────────────────────────────────────────────────
 
-type ScanCreateResponse = {
-  data?: { scan_id?: number; id?: number };
-  scan_id?: number;
-  id?: number;
-};
-
-type PredictResponse = {
-  data?: any;
-  scan_id?: number;
-  id?: number;
-  disease_id?: number;
-  predicted_disease?: string;
-  confidence_score?: number;
-  confidence?: number;
-};
-
-function unwrap<T>(value: any): T {
-  if (value && typeof value === 'object' && 'data' in value) return (value as any).data as T;
-  return value as T;
+/**
+ * Convert a data: URL string to a Blob object.
+ * Needed because canvas.toBlob() result is stored as a data URL.
+ */
+function dataUrlToBlob(dataUrl: string): Blob {
+  const [header, data] = dataUrl.split(',');
+  const mime = header?.match(/:(.*?);/)?.[1] ?? 'image/jpeg';
+  const bytes = atob(data ?? '');
+  const arr = new Uint8Array(bytes.length);
+  for (let i = 0; i < bytes.length; i++) arr[i] = bytes.charCodeAt(i);
+  return new Blob([arr], { type: mime });
 }
 
-function extractScanId(payload: unknown): number | null {
-  const data = unwrap<any>(payload as any);
-  const candidate =
-    data?.scan_id ??
-    data?.id ??
-    data?.data?.scan_id ??
-    data?.data?.id;
-
-  const asNumber = typeof candidate === 'number' ? candidate : Number(String(candidate ?? ''));
-  return Number.isFinite(asNumber) && asNumber > 0 ? asNumber : null;
+/**
+ * Load the scan image from sessionStorage as a Blob.
+ * Handles both blob: object URLs and data: URLs.
+ */
+async function loadScanBlob(value: string): Promise<Blob> {
+  if (value.startsWith('data:')) return dataUrlToBlob(value);
+  const res = await fetch(value);
+  if (!res.ok) throw new Error(`Failed to load scan image (${res.status})`);
+  return res.blob();
 }
 
-function extractPrediction(payload: unknown): { diseaseId: number | null; confidence: number | null } {
-  const data = unwrap<any>(payload as any);
-  const diseaseCandidate =
-    data?.disease_id ??
-    data?.prediction?.disease_id ??
-    data?.result?.disease_id ??
-    data?.data?.disease_id;
-
-  const confidenceCandidate =
-    data?.confidence ??
-    data?.confidence_score ??
-    data?.prediction?.confidence_score ??
-    data?.result?.confidence_score ??
-    data?.data?.confidence_score;
-
-  const diseaseId =
-    typeof diseaseCandidate === 'number'
-      ? diseaseCandidate
-      : Number.isFinite(Number(String(diseaseCandidate ?? '')))
-        ? Number(String(diseaseCandidate))
-        : null;
-
-  const confidence =
-    typeof confidenceCandidate === 'number'
-      ? confidenceCandidate
-      : Number.isFinite(Number(String(confidenceCandidate ?? '')))
-        ? Number(String(confidenceCandidate))
-        : null;
-
-  return {
-    diseaseId: diseaseId && diseaseId > 0 ? diseaseId : null,
-    confidence: confidence != null && Number.isFinite(confidence) ? confidence : null,
-  };
+/** Safely revoke a blob: URL to free memory */
+function revokeIfBlob(url: string | null) {
+  if (url?.startsWith('blob:')) {
+    try { URL.revokeObjectURL(url); } catch { /* ignore */ }
+  }
 }
 
-async function dataUrlToBlob(dataUrl: string): Promise<Blob> {
-  const res = await fetch(dataUrl);
-  return await res.blob();
+/** Extract scan_id from any backend prediction response shape */
+function parseScanId(payload: unknown): number | null {
+  const data = (payload && typeof payload === 'object' && 'data' in payload)
+    ? (payload as Record<string, unknown>).data
+    : payload;
+  const candidate = (data as Record<string, unknown>)?.scan_id ?? (data as Record<string, unknown>)?.id;
+  const n = Number(candidate);
+  return Number.isFinite(n) && n > 0 ? n : null;
 }
+
+// ─── Component ────────────────────────────────────────────────────────────────
 
 export default function ProcessingClient() {
   const router = useRouter();
@@ -84,185 +68,98 @@ export default function ProcessingClient() {
   useEffect(() => {
     let cancelled = false;
 
-    const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
-
     const run = async () => {
-      const imageDataUrl = sessionStorage.getItem('scan_image');
-      const nonce = sessionStorage.getItem('scan_nonce') || '';
+      const imageRef = sessionStorage.getItem(SESSION_KEYS.SCAN_IMAGE);
 
-      const inflightKey = nonce ? `scan_inflight_${nonce}` : '';
-      const resultKey = nonce ? `scan_result_${nonce}` : '';
-      const errorKey = nonce ? `scan_error_${nonce}` : '';
-
-      if (!imageDataUrl) {
-        router.replace('/scan');
+      // No image stored → send back to scan page
+      if (!imageRef) {
+        router.replace(ROUTES.SCAN);
         return;
       }
-
-      // If a previous mount already completed AND we're past the voice-describe, continue to results.
-      if (resultKey) {
-        const existingScanId = sessionStorage.getItem(resultKey);
-        const voiceCompleted = sessionStorage.getItem(`voice_completed_${nonce}`);
-        if (existingScanId && voiceCompleted === '1') {
-          sessionStorage.removeItem('scan_image');
-          sessionStorage.removeItem('scan_nonce');
-          sessionStorage.removeItem(inflightKey);
-          sessionStorage.removeItem(errorKey);
-          if (!cancelled) router.replace(`/results/${existingScanId}`);
-          return;
-        }
-      }
-
-      // If another mount already started the request, wait for it to finish.
-      if (inflightKey && sessionStorage.getItem(inflightKey) === '1') {
-        for (let i = 0; i < 80; i++) {
-          if (cancelled) return;
-
-          const finishedScanId = resultKey ? sessionStorage.getItem(resultKey) : null;
-          if (finishedScanId) {
-            sessionStorage.removeItem('scan_image');
-            sessionStorage.removeItem('scan_nonce');
-            sessionStorage.removeItem(inflightKey);
-            sessionStorage.removeItem(errorKey);
-            // Go to voice-describe, not results
-            router.replace(`/voice-describe?scan_id=${finishedScanId}`);
-            return;
-          }
-
-          if (errorKey && sessionStorage.getItem(errorKey) === '1') {
-            sessionStorage.removeItem('scan_image');
-            sessionStorage.removeItem('scan_nonce');
-            sessionStorage.removeItem(inflightKey);
-            router.replace('/results/unknown');
-            return;
-          }
-
-          await sleep(150);
-        }
-
-        router.replace('/results/unknown');
-        return;
-      }
-
-      if (inflightKey) sessionStorage.setItem(inflightKey, '1');
 
       try {
-        const blob = await dataUrlToBlob(imageDataUrl);
+        const blob = await loadScanBlob(imageRef);
         const form = new FormData();
         form.append('file', blob, 'scan.jpg');
 
-        const predictResponse = await fetch('/api/ai/predict', {
+        const res = await fetch('/api/ai/predict', {
           method: 'POST',
           body: form,
+          credentials: 'include',
         });
 
-        const predictPayload =
-          (await predictResponse.json().catch(() => null)) as PredictResponse | null;
+        const payload = await res.json().catch(() => null);
+        const scanId = parseScanId(payload);
 
-        const scanId = extractScanId(predictPayload);
-        const prediction = extractPrediction(predictPayload);
-
-        if (nonce) {
-          const predKey = `scan_prediction_${nonce}`;
-          sessionStorage.setItem(
-            predKey,
-            JSON.stringify({
-              disease_id: prediction.diseaseId,
-              confidence_score: prediction.confidence,
-              created_at: new Date().toISOString(),
-            })
-          );
-        } else {
-          sessionStorage.setItem(
-            'scan_prediction_last',
-            JSON.stringify({
-              disease_id: prediction.diseaseId,
-              confidence_score: prediction.confidence,
-              created_at: new Date().toISOString(),
-            })
-          );
+        if (!res.ok || !scanId) {
+          // Prediction failed — go to unknown results
+          throw new Error(payload?.message ?? 'Prediction failed');
         }
 
-        if (!predictResponse.ok) {
-          if (nonce && errorKey) sessionStorage.setItem(errorKey, '1');
-          if (inflightKey) sessionStorage.removeItem(inflightKey);
-          sessionStorage.removeItem('scan_image');
-          sessionStorage.removeItem('scan_nonce');
-          if (cancelled) return;
-          router.replace('/results/unknown');
-          return;
+        // Store scan results for the results page to read
+        sessionStorage.setItem(SESSION_KEYS.SCAN_ID, String(scanId));
+        sessionStorage.setItem(
+          SESSION_KEYS.SCAN_PREDICTION,
+          JSON.stringify({
+            disease_id: (payload as Record<string, unknown>)?.disease_id ?? null,
+            confidence_score: (payload as Record<string, unknown>)?.confidence_score ?? null,
+            created_at: new Date().toISOString(),
+          })
+        );
+
+        // Clean up image from session (no longer needed)
+        revokeIfBlob(imageRef);
+        sessionStorage.removeItem(SESSION_KEYS.SCAN_IMAGE);
+
+        if (!cancelled) {
+          // Go to voice description step before showing results
+          router.replace(`${ROUTES.VOICE_DESCRIBE ?? '/voice-describe'}?scan_id=${scanId}`);
         }
-
-        if (!scanId) {
-          if (nonce && errorKey) sessionStorage.setItem(errorKey, '1');
-          if (inflightKey) sessionStorage.removeItem(inflightKey);
-          sessionStorage.removeItem('scan_image');
-          sessionStorage.removeItem('scan_nonce');
-          if (cancelled) return;
-          router.replace('/results/unknown');
-          return;
-        }
-
-        if (nonce && resultKey) {
-          sessionStorage.setItem(resultKey, String(scanId));
-        }
-
-        if (inflightKey) sessionStorage.removeItem(inflightKey);
-        sessionStorage.removeItem('scan_image');
-        sessionStorage.removeItem('scan_nonce');
-
-        if (cancelled) return;
-
-        router.replace(`/voice-describe?scan_id=${scanId}`);
       } catch {
-        if (nonce && errorKey) sessionStorage.setItem(errorKey, '1');
-        if (inflightKey) sessionStorage.removeItem(inflightKey);
-        sessionStorage.removeItem('scan_image');
-        sessionStorage.removeItem('scan_nonce');
-        if (cancelled) return;
-        router.replace('/results/unknown');
+        // On any error, clean up and show unknown result
+        revokeIfBlob(sessionStorage.getItem(SESSION_KEYS.SCAN_IMAGE));
+        sessionStorage.removeItem(SESSION_KEYS.SCAN_IMAGE);
+        if (!cancelled) router.replace(`${ROUTES.RESULTS}/unknown`);
       }
     };
 
     run();
-
-    return () => {
-      cancelled = true;
-    };
+    return () => { cancelled = true; };
   }, [router]);
 
   return (
-    <div className="max-w-mobile mx-auto min-h-screen bg-background relative shadow-mobile">
+    <div className="max-w-mobile mx-auto min-h-screen bg-background relative shadow-mobile flex flex-col items-center justify-center">
+      <div className="px-6 text-center">
 
-      <div className="flex flex-col items-center justify-center h-full px-6 text-center">
-        <div className="relative mb-8">
-          <div className="w-24 h-24 border-4 border-gray-200 rounded-full"></div>
-          <div className="absolute top-0 left-0 w-24 h-24 border-4 border-green-600 border-t-transparent rounded-full animate-spin"></div>
+        {/* Spinner */}
+        <div className="relative mb-8 mx-auto w-24 h-24">
+          <div className="w-24 h-24 border-4 border-gray-200 rounded-full" />
+          <div className="absolute top-0 left-0 w-24 h-24 border-4 border-primary-green border-t-transparent rounded-full animate-spin" />
         </div>
 
         <h2 className="text-2xl font-bold text-gray-900 mb-4">Analyzing Image...</h2>
-
-        <p className="text-gray-600 leading-relaxed max-w-xs">
+        <p className="text-gray-600 max-w-xs mx-auto">
           Our AI is examining your cocoa plant to identify any diseases or issues.
         </p>
 
+        {/* Progress steps */}
         <div className="mt-8 space-y-3 text-sm">
-          <div className="flex items-center text-green-600">
-            <div className="w-4 h-4 bg-green-600 rounded-full mr-3 flex items-center justify-center">
-              <FiCheck size={12} className="text-white" />
+          <div className="flex items-center justify-center gap-3 text-primary-green">
+            <div className="w-4 h-4 bg-primary-green rounded-full flex items-center justify-center">
+              <FiCheck size={10} className="text-white" />
             </div>
             Image captured successfully
           </div>
 
-          <div className="flex items-center text-green-600">
-            <div className="w-4 h-4 bg-green-600 rounded-full mr-3 flex items-center justify-center">
-              <FiCheck size={12} className="text-white" />
+          <div className="flex items-center justify-center gap-3 text-primary-green">
+            <div className="w-4 h-4 bg-primary-green rounded-full flex items-center justify-center">
+              <FiCheck size={10} className="text-white" />
             </div>
             Processing with AI model
           </div>
 
-          <div className="flex items-center text-gray-400">
-            <div className="w-4 h-4 border-2 border-gray-300 rounded-full mr-3 animate-pulse"></div>
+          <div className="flex items-center justify-center gap-3 text-gray-400">
+            <div className="w-4 h-4 border-2 border-gray-300 rounded-full animate-pulse" />
             Generating diagnosis...
           </div>
         </div>

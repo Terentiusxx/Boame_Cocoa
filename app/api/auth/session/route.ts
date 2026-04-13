@@ -1,18 +1,24 @@
-import { cookies } from 'next/headers'
-import { NextResponse } from 'next/server'
-
-const COOKIE_NAME = 'auth_token'
-const USER_ID_COOKIE = 'user_id'
+/**
+ * app/api/auth/session/route.ts
+ * GET /api/auth/session → returns { authenticated: true/false }
+ *
+ * Used by AuthGuard on the client to check if the user is logged in.
+ * Checks for the presence of the auth token cookie — does NOT verify it.
+ * Actual token verification happens implicitly on every backend request.
+ */
+import { cookies } from 'next/headers';
+import { NextResponse } from 'next/server';
+import { COOKIE_NAME, USER_ID_COOKIE } from '@/lib/constants';
 
 export async function GET() {
-  const cookieStore = await cookies()
-  const hasSession = Boolean(
-    cookieStore.get(COOKIE_NAME)?.value || cookieStore.get(USER_ID_COOKIE)?.value
-  )
+  const jar = await cookies();
+  const isAuthenticated = Boolean(
+    jar.get(COOKIE_NAME)?.value || jar.get(USER_ID_COOKIE)?.value
+  );
 
-  if (!hasSession) {
-    return NextResponse.json({ authenticated: false }, { status: 401 })
+  if (!isAuthenticated) {
+    return NextResponse.json({ authenticated: false }, { status: 401 });
   }
 
-  return NextResponse.json({ authenticated: true })
+  return NextResponse.json({ authenticated: true });
 }

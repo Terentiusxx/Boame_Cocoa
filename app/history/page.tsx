@@ -1,39 +1,39 @@
+/**
+ * app/history/page.tsx
+ * Server Component — fetches scan history for the current user
+ * and passes it to Historydetails as a prop.
+ */
+import Historydetails from '@/components/historydetails';
+import { serverApi } from '@/lib/serverAPI';
+import { unwrapData } from '@/lib/utils';
+import type { HistoryResponse } from '@/lib/types';
 
-import Historydetails from "@/components/historydetails"
-import { HistoryResponse } from "@/lib/types";
-import { serverApi } from '@/lib/serverAPI'
+export const dynamic = 'force-dynamic';
 
-export const dynamic = 'force-dynamic'
-
-type WithData<T> = { data: T }
-type MaybeWrapped<T> = T | WithData<T>
-
-function unwrap<T>(value: MaybeWrapped<T>): T {
-  if (value && typeof value === 'object' && 'data' in value) {
-    return (value as WithData<T>).data
+async function getUserId(): Promise<number | null> {
+  try {
+    const payload = await serverApi<Record<string, unknown>>('/users/dashboard');
+    const data = unwrapData<Record<string, unknown>>(
+      payload as { data?: Record<string, unknown> }
+    ) ?? (payload as Record<string, unknown>);
+    const id = data?.user_id ?? data?.id ??
+      (data?.user as Record<string, unknown> | undefined)?.user_id;
+    return id ? Number(id) : null;
+  } catch {
+    return null;
   }
-  return value as T
-}
-
-async function getUserId() {
-  const dash = await serverApi<any>('/users/dashboard')
-  return (
-    dash?.user_id ??
-    dash?.id ??
-    dash?.data?.user_id ??
-    dash?.data?.id ??
-    dash?.user?.user_id ??
-    dash?.user?.id ??
-    null
-  )
 }
 
 export default async function Page() {
-  const userId = await getUserId()
-  if (!userId) return <Historydetails allScans={[]} />
+  const userId = await getUserId();
+  if (!userId) return <Historydetails allScans={[]} />;
 
-  const data = unwrap(
-    await serverApi<MaybeWrapped<HistoryResponse>>(`/history/${userId}?limit=50`)
-  )
-  return <Historydetails allScans={data.scans ?? []} />
+  try {
+    const payload = await serverApi<HistoryResponse>(`/history/${userId}?limit=50`);
+    const data = unwrapData<HistoryResponse>(payload as { data?: HistoryResponse }) ??
+      (payload as HistoryResponse);
+    return <Historydetails allScans={data?.scans ?? []} />;
+  } catch {
+    return <Historydetails allScans={[]} />;
+  }
 }

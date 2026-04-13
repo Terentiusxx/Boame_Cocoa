@@ -1,85 +1,44 @@
+/**
+ * PredictResultsClient.tsx
+ * ─────────────────────────────────────────────────────────────
+ * Reads the AI prediction from sessionStorage, then redirects to
+ * /results/:id which is a fully server-rendered page.
+ *
+ * This avoids client-side disease fetching by leveraging the existing
+ * server-driven results/[id] page that already fetches disease data
+ * server-side.
+ *
+ * Flow:
+ *   sessionStorage.scan_id present  → redirect to /results/:scan_id
+ *   sessionStorage.scan_id missing  → redirect to /results/unknown
+ */
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
-import ResultsPage, { type DiseaseOut, type ScanOut } from '@/components/results/ResultsPage';
-
-type StoredPrediction = {
-  disease_id?: number | null;
-  confidence_score?: number | null;
-  created_at?: string;
-};
-
-function getStoredPrediction(): StoredPrediction | null {
-  try {
-    const nonce = sessionStorage.getItem('scan_nonce') || '';
-    const key = nonce ? `scan_prediction_${nonce}` : 'scan_prediction_last';
-    const raw = sessionStorage.getItem(key);
-    if (!raw) return null;
-    const parsed = JSON.parse(raw);
-    if (!parsed || typeof parsed !== 'object') return null;
-    return parsed as StoredPrediction;
-  } catch {
-    return null;
-  }
-}
+import { useEffect } from 'react';
+import { useRouter } from 'next/navigation';
+import { SESSION_KEYS, ROUTES } from '@/lib/constants';
 
 export default function PredictResultsClient() {
-  const [prediction, setPrediction] = useState<StoredPrediction | null>(null);
-  const [disease, setDisease] = useState<DiseaseOut | null>(null);
-  const [loading, setLoading] = useState(true);
-
-  const diseaseId = useMemo(() => {
-    const id = prediction?.disease_id;
-    return typeof id === 'number' && id > 0 ? id : null;
-  }, [prediction]);
+  const router = useRouter();
 
   useEffect(() => {
-    const stored = getStoredPrediction();
-    setPrediction(stored);
-  }, []);
+    // Read the scan_id written by ProcessingClient
+    const scanId = sessionStorage.getItem(SESSION_KEYS.SCAN_ID);
 
-  useEffect(() => {
-    let cancelled = false;
+    if (scanId && Number(scanId) > 0) {
+      // Redirect to the server-rendered results page — it will fetch
+      // /scans/:id and /diseases/:id on the server
+      router.replace(`${ROUTES.RESULTS}/${scanId}`);
+    } else {
+      // No scan_id — show the unknown/failed result screen
+      router.replace(`${ROUTES.RESULTS}/unknown`);
+    }
+  }, [router]);
 
-    const run = async () => {
-      setLoading(true);
-      try {
-        if (!diseaseId) {
-          if (!cancelled) setDisease(null);
-          return;
-        }
-
-        const res = await fetch(`/api/diseases/${encodeURIComponent(String(diseaseId))}`);
-        const payload = await res.json().catch(() => null);
-
-        const unwrapped = payload && typeof payload === 'object' && 'data' in payload ? (payload as any).data : payload;
-        if (!cancelled) setDisease(res.ok ? (unwrapped as DiseaseOut) : null);
-      } finally {
-        if (!cancelled) setLoading(false);
-      }
-    };
-
-    run();
-    return () => {
-      cancelled = true;
-    };
-  }, [diseaseId]);
-
-  if (loading) {
-    return <ResultsPage mode="unknown" />;
-  }
-
-  const scan: ScanOut | null = prediction
-    ? {
-        disease_id: diseaseId,
-        confidence_score: prediction.confidence_score ?? undefined,
-        created_at: prediction.created_at ?? undefined,
-      }
-    : null;
-
-  if (!diseaseId || !disease) {
-    return <ResultsPage mode="unknown" />;
-  }
-
-  return <ResultsPage mode="known" scan={scan} disease={disease} />;
+  // Show spinner while sessionStorage is being read and redirect is happening
+  return (
+    <div className="max-w-mobile mx-auto min-h-screen bg-background flex items-center justify-center">
+      <div className="w-10 h-10 border-4 border-primary-green border-t-transparent rounded-full animate-spin" />
+    </div>
+  );
 }

@@ -1,87 +1,91 @@
-import HomeUI from '@/components/homeui'
-import AuthGuard from '@/components/AuthGuard'
-import { serverApi } from '@/lib/serverAPI'
-import type { DiseaseData, HistoryResponse } from '@/lib/types'
-import { getDiseaseLocalImage } from '@/lib/utils'
+/**
+ * app/home/page.tsx
+ * ─────────────────────────────────────────────────────────────
+ * Server Component — fetches home page data server-side and passes
+ * it as props to HomeUI (a Client Component).
+ *
+ * Runs on every request (force-dynamic) so data is always fresh.
+ * Any errors are caught individually so a partial failure (e.g. /users/me
+ * fails) doesn't crash the whole page.
+ */
+import HomeUI from '@/components/homeui';
+import AuthGuard from '@/components/AuthGuard';
+import { serverApi } from '@/lib/serverAPI';
+import { unwrapData, urgencyToUi, getDiseaseLocalImage } from '@/lib/utils';
+import type { DiseaseData, HistoryResponse } from '@/lib/types';
 
-export const dynamic = 'force-dynamic'
+// Force dynamic so cookies are available and data is fresh per request
+export const dynamic = 'force-dynamic';
 
-type WithData<T> = { data: T }
-type MaybeWrapped<T> = T | WithData<T>
+// ─── Server-Side Data Fetching ────────────────────────────────────────────────
 
-function unwrap<T>(value: MaybeWrapped<T>): T {
-  if (value && typeof value === 'object' && 'data' in value) {
-    return (value as WithData<T>).data
-  }
-  return value as T
-}
-
-function urgencyToUi(urgencyLevel?: string) {
-  const v = urgencyLevel?.toLowerCase()
-  if (v === 'high') return { urgency: 'High Urgency', urgencyClass: 'urgency-high' }
-  if (v === 'medium') return { urgency: 'Medium Urgency', urgencyClass: 'urgency-medium' }
-  if (v === 'low') return { urgency: 'Low Urgency', urgencyClass: 'urgency-low' }
-  return { urgency: 'Unknown', urgencyClass: 'urgency-low' }
-}
-
-async function getUserId() {
-  try {
-    const dash = await serverApi<any>('/users/dashboard')
-    return (
-      dash?.user_id ??
-      dash?.id ??
-      dash?.data?.user_id ??
-      dash?.data?.id ??
-      dash?.user?.user_id ??
-      dash?.user?.id ??
-      null
-    )
-  } catch {
-    return null
-  }
-}
-
-async function getRecentScans(limit: number): Promise<DiseaseData[]> {
-  const userId = await getUserId()
-  if (!userId) return []
-
-  let scans: HistoryResponse['scans'] = []
-  try {
-    const history = unwrap(await serverApi<MaybeWrapped<HistoryResponse>>(`/history/${userId}?limit=${limit}`))
-    scans = history?.scans ?? []
-  } catch {
-    return []
-  }
-
-  return scans.map((scan) => {
-    const u = urgencyToUi(scan.urgency_level)
-    return {
-      id: String(scan.scan_id),
-      name: scan.disease_name,
-      urgency: u.urgency as DiseaseData['urgency'],
-      urgencyClass: u.urgencyClass,
-      image: getDiseaseLocalImage(scan.disease_name),
-    }
-  })
-}
-
+/** Fetch the current user's first name. Returns null on any failure. */
 async function getFirstName(): Promise<string | null> {
   try {
-    const me = await serverApi<any>('/users/me')
-    const user = unwrap<any>(me)
-    return typeof user?.first_name === 'string' && user.first_name.trim()
-      ? user.first_name.trim()
-      : null
+    const me = unwrapData(await serverApi<Record<string, unknown>>('/users/me')) ??
+               await serverApi<Record<string, unknown>>('/users/me');
+    return typeof me?.first_name === 'string' && me.first_name.trim()
+      ? me.first_name.trim()
+      : null;
   } catch {
-    return null
+    return null;
   }
 }
 
-export default async function Page() {
-  const [recentScans, firstName] = await Promise.all([getRecentScans(3), getFirstName()])
+/**
+ * Fetch the authenticated user's ID from the dashboard.
+ * The dashboard response reliably includes user_id.
+ */
+async function getUserId(): Promise<number | null> {
+  try {
+    const dash = await serverApi<Record<string, unknown>>('/users/dashboard');
+    const data = unwrapData<Record<string, unknown>>(dash as { data?: Record<string, unknown> }) ?? (dash as Record<string, unknown>);
+    const id = data?.user_id ?? data?.id ??
+      (data?.user as Record<string, unknown> | undefined)?.user_id;
+    return id ? Number(id) : null;
+  } catch {
+    return null;
+  }
+}
+
+/** Fetch recent scan history and map to DiseaseData for the home page */
+async function getRecentScans(limit = 3): Promise<DiseaseData[]> {
+  try {
+    const userId = await getUserId();
+    if (!userId) return [];
+
+    const history = unwrapData(
+      await serverApi<{ scans?: HistoryResponse['scans'] }>(`/history/${userId}?limit=${limit}`)
+    );
+    const scans = (history as HistoryResponse | null)?.scans ?? [];
+
+    return scans.map((scan) => {
+      const { label, className } = urgencyToUi(scan.urgency_level);
+      return {
+        id:           String(scan.scan_id),
+        name:         scan.disease_name,
+        urgency:      label as DiseaseData['urgency'],
+        urgencyClass: className,
+        image:        getDiseaseLocalImage(scan.disease_name),
+      };
+    });
+  } catch {
+    return [];
+  }
+}
+
+// ─── Page ─────────────────────────────────────────────────────────────────────
+
+export default async function HomePage() {
+  // Fetch data in parallel — individual failures return fallback values
+  const [recentScans, firstName] = await Promise.all([
+    getRecentScans(3),
+    getFirstName(),
+  ]);
+
   return (
     <AuthGuard type="protected">
       <HomeUI recentScans={recentScans} firstName={firstName} />
     </AuthGuard>
-  )
+  );
 }

@@ -1,7 +1,13 @@
-import { proxyBackendJson } from '@/lib/backendProxy'
-import type { NextRequest } from 'next/server'
+/**
+ * app/api/scans/[scan_id]/route.ts
+ * GET /api/scans/:scan_id → backend GET /scans/:scan_id
+ */
+import { proxyBackendJson } from '@/lib/backendProxy';
 
-export async function GET(req: NextRequest, context: { params: Promise<{ scan_id: string }> }) {
-  const { scan_id } = await context.params
-  return proxyBackendJson(req, `/scans/${scan_id}`, { method: 'GET' })
+export async function GET(
+  _req: Request,
+  context: { params: Promise<{ scan_id: string }> }
+) {
+  const { scan_id } = await context.params;
+  return proxyBackendJson(`/scans/${scan_id}`);
 }

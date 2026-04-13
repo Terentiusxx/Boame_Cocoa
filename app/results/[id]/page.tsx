@@ -1,27 +1,37 @@
+/**
+ * app/results/[id]/page.tsx
+ * Server Component — fetches scan and disease data server-side.
+ *
+ * Routes:
+ *   /results/unknown  → show the "could not identify" result screen
+ *   /results/predict  → redirect via PredictResultsClient (reads sessionStorage scan_id)
+ *   /results/:scanId  → fetch scan + disease from backend, render result
+ */
 import Link from 'next/link';
+import AuthGuard from '@/components/AuthGuard';
 import ResultsPage, { type DiseaseOut, type ScanOut } from '@/components/results/ResultsPage';
 import PredictResultsClient from '@/components/results/PredictResultsClient';
 import { serverApi } from '@/lib/serverAPI';
+import { unwrapData } from '@/lib/utils';
+import { ROUTES } from '@/lib/constants';
 
-type WithData<T> = { data: T };
-
-type MaybeWrapped<T> = T | WithData<T>;
-
-function unwrap<T>(value: MaybeWrapped<T>): T {
-  if (value && typeof value === 'object' && 'data' in value) {
-    return (value as WithData<T>).data;
+async function safeApi<T>(path: string): Promise<T | null> {
+  try {
+    const payload = await serverApi<T>(path);
+    return unwrapData<T>(payload as { data?: T }) ?? (payload as T) ?? null;
+  } catch {
+    return null;
   }
-  return value as T;
 }
 
-function DiseaseNotFound() {
+function NotFound() {
   return (
     <div className="max-w-mobile mx-auto min-h-screen bg-background relative shadow-mobile">
       <div className="px-6 py-4">
-        <p>Disease not found</p>
+        <p className="text-brand-sub-text mb-4">Disease not found.</p>
         <Link
-          href="/home"
-          className="bg-brand-buttons text-white border-none px-6 py-4 rounded-brand text-base font-semibold cursor-pointer transition-all w-full text-center no-underline inline-block hover:opacity-90 mt-4"
+          href={ROUTES.HOME}
+          className="block w-full rounded-brand bg-brand-buttons py-4 text-center text-base font-semibold text-white hover:opacity-90 transition"
         >
           Back to Home
         </Link>
@@ -33,40 +43,63 @@ function DiseaseNotFound() {
 export default async function ResultsRoute({
   params,
 }: {
-  params: Promise<{ id: string }> | { id: string };
+  params: Promise<{ id: string }>;
 }) {
-  const resolvedParams = await Promise.resolve(params);
-  const id = resolvedParams.id;
+  const { id } = await params;
 
+  // ── Special route: unknown result ─────────────────────────────────────────
   if (id === 'unknown') {
-    return <ResultsPage mode="unknown" />;
+    return (
+      <AuthGuard type="protected">
+        <ResultsPage mode="unknown" />
+      </AuthGuard>
+    );
   }
 
+  // ── Special route: predict (reads sessionStorage scan_id client-side) ─────
   if (id === 'predict') {
-    return <PredictResultsClient />;
+    return (
+      <AuthGuard type="protected">
+        <PredictResultsClient />
+      </AuthGuard>
+    );
   }
 
+  // ── Numeric scan ID route ─────────────────────────────────────────────────
   const scanId = Number(id);
   if (!Number.isFinite(scanId) || scanId <= 0) {
-    return <ResultsPage mode="unknown" />;
+    return (
+      <AuthGuard type="protected">
+        <ResultsPage mode="unknown" />
+      </AuthGuard>
+    );
   }
 
-  try {
-    const scan = unwrap(await serverApi<MaybeWrapped<ScanOut>>(`/scans/${scanId}`));
+  // Fetch scan, then disease — all server-side
+  const scan = await safeApi<ScanOut>(`/scans/${scanId}`);
+  const diseaseId = scan?.disease_id ?? null;
 
-    const diseaseId = scan?.disease_id ?? null;
-    if (!diseaseId) {
-      return <ResultsPage mode="unknown" scanId={scanId} scan={scan} disease={null} />;
-    }
-
-    const disease = unwrap(await serverApi<MaybeWrapped<DiseaseOut>>(`/diseases/${diseaseId}`));
-
-    if (!disease) {
-      return <DiseaseNotFound />;
-    }
-
-    return <ResultsPage mode="known" scanId={scanId} scan={scan} disease={disease} />;
-  } catch {
-    return <ResultsPage mode="unknown" />;
+  if (!diseaseId) {
+    return (
+      <AuthGuard type="protected">
+        <ResultsPage mode="unknown" scanId={scanId} scan={scan} />
+      </AuthGuard>
+    );
   }
+
+  const disease = await safeApi<DiseaseOut>(`/diseases/${diseaseId}`);
+
+  if (!disease) {
+    return (
+      <AuthGuard type="protected">
+        <NotFound />
+      </AuthGuard>
+    );
+  }
+
+  return (
+    <AuthGuard type="protected">
+      <ResultsPage mode="known" scanId={scanId} scan={scan} disease={disease} />
+    </AuthGuard>
+  );
 }

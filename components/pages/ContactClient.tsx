@@ -1,221 +1,174 @@
+/**
+ * ContactClient.tsx
+ * ─────────────────────────────────────────────────────────────
+ * Expert listing page. Receives server-fetched data as props —
+ * no GET fetches happen in this component.
+ *
+ * Server fetches (in app/contact/page.tsx):
+ *   GET /experts   → experts prop
+ *   GET /users/me  → userCity prop (for location display)
+ */
 'use client';
 
-import Link from 'next/link';
-import { useEffect, useMemo, useState } from 'react';
-import { useRouter, useSearchParams } from 'next/navigation';
-import { FiMapPin, FiStar } from 'react-icons/fi';
-import type { Expert } from '@/lib/types';
+import { useState } from 'react';
+import { useRouter } from 'next/navigation';
+import Image from 'next/image';
+import { FiStar, FiMapPin, FiArrowLeft } from 'react-icons/fi';
+import { ROUTES } from '@/lib/constants';
 
-type MaybeWrapped<T> = T | { data?: T };
+// ─── Types ────────────────────────────────────────────────────────────────────
 
-function unwrapData<T>(value: MaybeWrapped<T> | null): T | null {
-  if (!value) return null;
-  if (typeof value === 'object' && 'data' in value) {
-    return ((value as { data?: T }).data ?? null) as T | null;
-  }
-  return value as T;
+type Expert = {
+  expert_id: number;
+  first_name: string;
+  last_name: string;
+  specialization?: string;
+  organization?: string;
+  bio?: string;
+  years_experienced?: number;
+  rating?: number;
+  location?: string;
+  photo?: string | null;
+  is_verified?: boolean;
+};
+
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+
+/** Sort experts: verified first, then rating descending, then name */
+function rankExperts(experts: Expert[]): Expert[] {
+  return [...experts].sort((a, b) => {
+    if (a.is_verified !== b.is_verified) return a.is_verified ? -1 : 1;
+    if ((b.rating ?? 0) !== (a.rating ?? 0)) return (b.rating ?? 0) - (a.rating ?? 0);
+    return `${a.first_name} ${a.last_name}`.localeCompare(`${b.first_name} ${b.last_name}`);
+  });
 }
 
-function normalizeLocation(value: string) {
-  return value.trim().toLowerCase();
+/** Initials avatar when no photo is available */
+function AvatarFallback({ name }: { name: string }) {
+  const parts = name.trim().split(' ');
+  const initials = ((parts[0]?.[0] ?? '') + (parts[1]?.[0] ?? '')).toUpperCase();
+  return (
+    <div className="w-14 h-14 rounded-full bg-primary-green flex items-center justify-center text-white font-bold text-lg shrink-0">
+      {initials}
+    </div>
+  );
 }
 
-function locationMatchScore(userLocation: string, expertLocation?: string) {
-  const user = normalizeLocation(userLocation);
-  const expert = normalizeLocation(expertLocation ?? '');
+// ─── Component ────────────────────────────────────────────────────────────────
 
-  if (!user || !expert) return 4;
-  if (user === expert) return 0;
-  if (expert.includes(user) || user.includes(expert)) return 1;
-
-  const userParts = user.split(/[,-]/).map((s) => s.trim()).filter(Boolean);
-  const expertParts = expert.split(/[,-]/).map((s) => s.trim()).filter(Boolean);
-  const overlap = userParts.some((part) => expertParts.includes(part));
-  if (overlap) return 2;
-
-  return 3;
-}
-
-function fullName(expert: Expert) {
-  return [expert.first_name, expert.mid_name, expert.last_name].filter(Boolean).join(' ').trim() || 'Unnamed Expert';
-}
-
-function formatRating(value?: number) {
-  if (typeof value !== 'number' || Number.isNaN(value)) return 'New';
-  return value.toFixed(1);
-}
-
-export default function ContactClient() {
+export default function ContactClient({
+  experts,
+  userCity,
+  scanId,
+}: {
+  experts: Expert[];
+  userCity: string | null;
+  scanId?: string;
+}) {
   const router = useRouter();
-  const searchParams = useSearchParams();
-  const scanIdParam = searchParams.get('scan_id');
-
-  const [experts, setExperts] = useState<Expert[]>([]);
-  const [loadingExperts, setLoadingExperts] = useState(true);
-  const [expertsError, setExpertsError] = useState<string | null>(null);
-
-  const [userLocation, setUserLocation] = useState('');
-
-  useEffect(() => {
-    let mounted = true;
-
-    const loadExperts = async () => {
-      setLoadingExperts(true);
-      setExpertsError(null);
-
-      try {
-        const [expertsRes, meRes, dashRes] = await Promise.all([
-          fetch('/api/experts', { method: 'GET' }),
-          fetch('/api/users/me', { method: 'GET' }),
-          fetch('/api/users/dashboard', { method: 'GET' }),
-        ]);
-
-        const expertsPayload = (await expertsRes.json().catch(() => null)) as MaybeWrapped<Expert[]> | null;
-        const expertsData = unwrapData<Expert[]>(expertsPayload);
-
-        if (!expertsRes.ok) {
-          throw new Error('Failed to load experts. Please try again.');
-        }
-
-        const mePayload = (await meRes.json().catch(() => null)) as Record<string, unknown> | null;
-        const dashPayload = (await dashRes.json().catch(() => null)) as Record<string, unknown> | null;
-
-        const meData = unwrapData<Record<string, unknown>>(mePayload as MaybeWrapped<Record<string, unknown>>);
-        const dashData = unwrapData<Record<string, unknown>>(dashPayload as MaybeWrapped<Record<string, unknown>>);
-
-        const detectedLocation =
-          (meData?.location as string | undefined) ||
-          (meData?.district as string | undefined) ||
-          (meData?.region as string | undefined) ||
-          (meData?.city as string | undefined) ||
-          (dashData?.location as string | undefined) ||
-          (dashData?.district as string | undefined) ||
-          ((dashData?.user as Record<string, unknown> | undefined)?.location as string | undefined) ||
-          '';
-
-        if (!mounted) return;
-
-        const normalizedExperts = Array.isArray(expertsData) ? expertsData : [];
-        setExperts(normalizedExperts);
-        setUserLocation(detectedLocation);
-      } catch (error) {
-        if (!mounted) return;
-        setExpertsError(error instanceof Error ? error.message : 'Unable to load experts right now.');
-      } finally {
-        if (mounted) setLoadingExperts(false);
-      }
-    };
-
-    void loadExperts();
-
-    return () => {
-      mounted = false;
-    };
-  }, []);
-
-  const rankedExperts = useMemo(() => {
-    return [...experts].sort((a, b) => {
-      const byLocation = locationMatchScore(userLocation, a.location) - locationMatchScore(userLocation, b.location);
-      if (byLocation !== 0) return byLocation;
-
-      if (Boolean(a.is_verified) !== Boolean(b.is_verified)) {
-        return a.is_verified ? -1 : 1;
-      }
-
-      const byRating = (b.rating ?? 0) - (a.rating ?? 0);
-      if (byRating !== 0) return byRating;
-
-      return fullName(a).localeCompare(fullName(b));
-    });
-  }, [experts, userLocation]);
-
-  const buildFormLink = (expertId: number) => {
-    const params = new URLSearchParams();
-    params.set('expert_id', String(expertId));
-    if (scanIdParam) params.set('scan_id', scanIdParam);
-    return `/contact/form?${params.toString()}`;
-  };
-
-  const handleBack = () => {
-    if (typeof window !== 'undefined' && window.history.length > 1) {
-      router.back();
-      return;
-    }
-    router.push('/home');
-  };
-
-  const renderExpertCards = (items: Expert[]) => {
-    return items.map((expert) => (
-      <Link
-        key={expert.expert_id}
-        href={buildFormLink(expert.expert_id)}
-        className="block rounded-2xl border border-gray-200 bg-white p-4 hover:border-green-300 transition-all"
-      >
-        <div className="flex items-start gap-3">
-          <img
-            src={expert.photo || '/img/homelogo.png'}
-            alt={fullName(expert)}
-            className="w-16 h-16 rounded-xl object-cover bg-gray-100 shrink-0"
-          />
-
-          <div className="min-w-0 flex-1">
-            <p className="text-base font-semibold text-brand-text-titles truncate">{fullName(expert)}</p>
-            <p className="text-sm text-brand-sub-text truncate mt-1">{expert.specialization || 'Cocoa Specialist'}</p>
-
-            <div className="mt-2 flex items-center gap-3 text-xs text-brand-sub-text">
-              <span className="inline-flex items-center gap-1">
-                <FiMapPin size={13} />
-                {expert.location || 'Unknown location'}
-              </span>
-              <span className="inline-flex items-center gap-1 text-amber-700">
-                <FiStar size={13} />
-                {formatRating(expert.rating)}
-              </span>
-            </div>
-
-            <span className="inline-block mt-3 text-xs font-semibold text-brand-buttons">Select and Continue</span>
-          </div>
-        </div>
-      </Link>
-    ));
-  };
+  const ranked = rankExperts(experts);
 
   return (
     <div className="max-w-mobile mx-auto min-h-screen bg-background relative shadow-mobile">
-      <div className="px-6 pb-6">
-        <div className="flex items-center justify-between py-4 mb-6">
+      <div className="px-6 pb-24">
+
+        {/* ── Header ─────────────────────────────────────────────────────── */}
+        <div className="flex items-center justify-between py-4 mb-4">
           <button
             type="button"
-            onClick={handleBack}
+            onClick={() => router.back()}
             aria-label="Go back"
-            className="bg-transparent border-none text-lg cursor-pointer p-2 rounded-full flex items-center justify-center w-9 h-9 hover:bg-black/5"
+            className="flex items-center justify-center w-9 h-9 rounded-full hover:bg-black/5 transition"
           >
-            <span className="text-xl">&lt;</span>
+            <FiArrowLeft size={20} />
           </button>
-          <h1 className="text-xl font-semibold text-brand-text-titles">Choose Expert</h1>
-          <div className="w-9"></div>
+          <h1 className="text-xl font-semibold text-brand-text-titles">Talk to an Expert</h1>
+          <div className="w-9" />
         </div>
 
-        <div className="space-y-6">
-          <div className="space-y-4">
-            {loadingExperts ? (
-              <div className="rounded-xl border border-gray-200 bg-white p-5 text-sm text-brand-sub-text">Loading experts...</div>
-            ) : null}
+        {userCity && (
+          <p className="text-sm text-brand-sub-text mb-4 flex items-center gap-1">
+            <FiMapPin size={14} /> Showing experts near <strong>{userCity}</strong>
+          </p>
+        )}
 
-            {expertsError ? (
-              <div className="rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">{expertsError}</div>
-            ) : null}
+        {/* ── Empty state ─────────────────────────────────────────────────── */}
+        {ranked.length === 0 && (
+          <p className="text-sm text-gray-500 text-center py-10">No experts available at this time.</p>
+        )}
 
-            {!loadingExperts && !expertsError && rankedExperts.length === 0 ? (
-              <div className="rounded-xl border border-gray-200 bg-white p-5 text-sm text-brand-sub-text">
-                No experts available right now.
+        {/* ── Expert Cards ─────────────────────────────────────────────────── */}
+        <div className="space-y-3">
+          {ranked.map((expert) => (
+            <div
+              key={expert.expert_id}
+              className="bg-white rounded-brand p-4 shadow-card cursor-pointer transition-shadow hover:shadow-card-hover"
+              onClick={() =>
+                router.push(
+                  `/contact/form?expert_id=${expert.expert_id}${scanId ? `&scan_id=${scanId}` : ''}`
+                )
+              }
+            >
+              <div className="flex items-start gap-3">
+
+                {/* Avatar */}
+                {expert.photo ? (
+                  <div className="relative w-14 h-14 rounded-full overflow-hidden shrink-0">
+                    <Image
+                      src={expert.photo}
+                      alt={`${expert.first_name} ${expert.last_name}`}
+                      fill
+                      className="object-cover"
+                    />
+                  </div>
+                ) : (
+                  <AvatarFallback name={`${expert.first_name} ${expert.last_name}`} />
+                )}
+
+                {/* Info */}
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <h3 className="font-semibold text-gray-900 text-sm">
+                      {expert.first_name} {expert.last_name}
+                    </h3>
+                    {expert.is_verified && (
+                      <span className="text-[10px] bg-green-100 text-green-700 rounded-full px-2 py-0.5 font-medium">
+                        Verified
+                      </span>
+                    )}
+                  </div>
+
+                  {expert.specialization && (
+                    <p className="text-xs text-brand-sub-text mt-0.5">{expert.specialization}</p>
+                  )}
+                  {expert.bio && (
+                    <p className="text-xs text-gray-500 mt-1 line-clamp-2">{expert.bio}</p>
+                  )}
+
+                  <div className="flex items-center gap-3 mt-2 text-xs text-gray-400 flex-wrap">
+                    {expert.rating !== undefined && (
+                      <span className="flex items-center gap-1">
+                        <FiStar size={11} className="text-yellow-400 fill-yellow-400" />
+                        {expert.rating.toFixed(1)}
+                      </span>
+                    )}
+                    {expert.years_experienced !== undefined && (
+                      <span>{expert.years_experienced}y exp.</span>
+                    )}
+                    {expert.location && (
+                      <span className="flex items-center gap-0.5">
+                        <FiMapPin size={11} /> {expert.location}
+                      </span>
+                    )}
+                  </div>
+                </div>
+
+                <span className="text-xs font-semibold text-brand-buttons shrink-0 self-center">
+                  Contact →
+                </span>
               </div>
-            ) : null}
-
-            {!loadingExperts && !expertsError && rankedExperts.length > 0 ? (
-              <div className="space-y-3">{renderExpertCards(rankedExperts)}</div>
-            ) : null}
-          </div>
+            </div>
+          ))}
         </div>
       </div>
     </div>

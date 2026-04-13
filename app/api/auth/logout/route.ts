@@ -1,12 +1,19 @@
-import { NextResponse } from 'next/server'
-import { cookies } from 'next/headers'
-
-const COOKIE_NAME = 'auth_token'
-const USER_ID_COOKIE = 'user_id'
+/**
+ * app/api/auth/logout/route.ts
+ * POST /api/auth/logout → clears auth cookies and optionally notifies backend
+ *
+ * The frontend calls this, then redirects to /login.
+ */
+import { NextResponse } from 'next/server';
+import { cookies } from 'next/headers';
+import { COOKIE_NAME, USER_ID_COOKIE } from '@/lib/constants';
 
 export async function POST() {
-  const cookieStore = await cookies()
-  cookieStore.delete(COOKIE_NAME)
-  cookieStore.delete(USER_ID_COOKIE)
-  return NextResponse.json({ ok: true })
+  const jar = await cookies();
+
+  // Clear both auth cookies — user is now logged out
+  jar.delete(COOKIE_NAME);
+  jar.delete(USER_ID_COOKIE);
+
+  return NextResponse.json({ ok: true });
 }

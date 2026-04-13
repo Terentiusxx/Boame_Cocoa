@@ -1,49 +1,57 @@
-import { backendFetch } from '@/lib/backendProxy'
-import { NextResponse } from 'next/server'
+/**
+ * app/api/ai/voice-diagnose/route.ts
+ * POST /api/ai/voice-diagnose → backend POST /ai/voice-diagnose
+ *
+ * Accepts a multipart form with `file` (audio blob), forwards to backend.
+ */
+import { backendFetch } from '@/lib/backendProxy';
+import { cookies } from 'next/headers';
+import { NextResponse } from 'next/server';
+import { COOKIE_NAME } from '@/lib/constants';
 
 export async function POST(req: Request) {
   try {
-    const url = new URL(req.url)
-    const latitude = url.searchParams.get('latitude')
-    const longitude = url.searchParams.get('longitude')
-
-    const params = new URLSearchParams()
-    if (latitude) params.set('latitude', latitude)
-    if (longitude) params.set('longitude', longitude)
-
-    const qs = params.toString()
-    const path = `/ai/voice-diagnose${qs ? `?${qs}` : ''}`
-    const requestContentType = req.headers.get('content-type')
-    const body = await req.arrayBuffer()
-
-    const headers = new Headers()
-    if (requestContentType) {
-      headers.set('content-type', requestContentType)
+    // Require auth in production
+    const token = (await cookies()).get(COOKIE_NAME)?.value;
+    if (!token && process.env.NEXT_PUBLIC_DEV_MODE !== 'true') {
+      return NextResponse.json({ message: 'Not authenticated' }, { status: 401 });
     }
 
-    const res = await backendFetch(path, {
-      method: 'POST',
-      headers,
-      body,
-    })
+    // Forward optional geo-coordinates
+    const { searchParams } = new URL(req.url);
+    const qs = new URLSearchParams();
+    const lat = searchParams.get('latitude');
+    const lng = searchParams.get('longitude');
+    if (lat) qs.set('latitude', lat);
+    if (lng) qs.set('longitude', lng);
 
-    const responseContentType = res.headers.get('content-type') || ''
-    if (responseContentType.includes('application/json')) {
-      const json = await res.json().catch(() => null)
+    const path = `/ai/voice-diagnose${qs.toString() ? `?${qs}` : ''}`;
+
+    // Pass the raw audio form data straight through
+    const contentType = req.headers.get('content-type');
+    const body = await req.arrayBuffer();
+    const headers = new Headers();
+    if (contentType) headers.set('content-type', contentType);
+
+    const res = await backendFetch(path, { method: 'POST', headers, body });
+
+    const contentTypeRes = res.headers.get('content-type') ?? '';
+    if (contentTypeRes.includes('application/json')) {
+      const json = await res.json().catch(() => null);
       return NextResponse.json(json ?? { message: 'Invalid JSON from backend' }, {
         status: res.status,
-      })
+      });
     }
 
-    const text = await res.text().catch(() => '')
+    const text = await res.text().catch(() => '');
     return NextResponse.json(
-      text ? { message: text } : { message: res.ok ? 'OK' : 'Request failed' },
+      { message: text || (res.ok ? 'OK' : 'Request failed') },
       { status: res.status }
-    )
+    );
   } catch (error) {
     return NextResponse.json(
-      { message: error instanceof Error ? error.message : 'Failed' },
+      { message: error instanceof Error ? error.message : 'Voice diagnose failed' },
       { status: 500 }
-    )
+    );
   }
 }

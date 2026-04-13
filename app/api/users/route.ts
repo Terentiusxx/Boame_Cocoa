@@ -1,88 +1,98 @@
-import { backendFetch } from '@/lib/backendProxy'
-import { NextResponse } from 'next/server'
+/**
+ * app/api/users/route.ts
+ * POST /api/users → backend POST /users (create account / signup)
+ *
+ * The backend may expect either JSON or form-urlencoded body.
+ * We detect a 422 "all body fields missing" response and automatically
+ * retry as form-urlencoded — this handles FastAPI Form() vs Body() schemas.
+ */
+import { backendFetch } from '@/lib/backendProxy';
+import { NextResponse } from 'next/server';
 
-function isMissingBodyFields422(payload: any): boolean {
-  const detail = payload?.detail
-  if (!Array.isArray(detail) || detail.length === 0) return false
-
-  return detail.every((item) => {
-    const loc = Array.isArray(item?.loc) ? item.loc : []
-    return item?.type === 'missing' && loc[0] === 'body'
-  })
+/** Check if a FastAPI 422 means the body encoding format was wrong */
+function isMissingBodyFields422(payload: unknown): boolean {
+  const detail = (payload as Record<string, unknown>)?.detail;
+  if (!Array.isArray(detail) || detail.length === 0) return false;
+  return detail.every((item: Record<string, unknown>) =>
+    item?.type === 'missing' && Array.isArray(item?.loc) && (item.loc as string[])[0] === 'body'
+  );
 }
 
-async function toNextJson(res: Response) {
-  const contentType = res.headers.get('content-type') || ''
+/** Convert a backend Response to a NextResponse, preserving status and JSON body */
+async function toNextResponse(res: Response): Promise<NextResponse> {
+  const contentType = res.headers.get('content-type') ?? '';
 
   if (contentType.includes('application/json')) {
-    const data = await res.json().catch(() => null)
-    return NextResponse.json(data ?? { message: 'Invalid JSON from backend' }, { status: res.status })
+    const data = await res.json().catch(() => null);
+    return NextResponse.json(data ?? { message: 'Invalid JSON from backend' }, {
+      status: res.status,
+    });
   }
 
-  const text = await res.text().catch(() => '')
+  const text = await res.text().catch(() => '');
   return NextResponse.json(
-    text ? { message: text } : { message: res.ok ? 'OK' : 'Request failed' },
+    { message: text || (res.ok ? 'OK' : 'Request failed') },
     { status: res.status }
-  )
+  );
 }
 
 export async function POST(req: Request) {
   try {
-    const contentType = req.headers.get('content-type') || 'application/json'
-    if (contentType.includes('multipart/form-data')) {
-      const formData = await req.formData()
-      const form = new URLSearchParams()
+    const contentType = req.headers.get('content-type') ?? '';
 
+    // ── Multipart form (profile image upload) ───────────────────────────────
+    if (contentType.includes('multipart/form-data')) {
+      const formData = await req.formData();
+      const form = new URLSearchParams();
+
+      // Convert to url-encoded — file/blob fields are skipped (image sent as data URL string)
       for (const [key, value] of formData.entries()) {
-        if (typeof value === 'string') {
-          form.set(key, value)
-        }
+        if (typeof value === 'string') form.set(key, value);
       }
 
-      const multipartRes = await backendFetch('/users', {
+      const res = await backendFetch('/users', {
         method: 'POST',
         headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
         body: form.toString(),
-      })
-      return toNextJson(multipartRes)
+      });
+      return toNextResponse(res);
     }
 
-    const rawBody = await req.text().catch(() => '')
+    // ── JSON body ────────────────────────────────────────────────────────────
+    const rawBody = await req.text().catch(() => '');
 
     const firstRes = await backendFetch('/users', {
       method: 'POST',
-      headers: { 'Content-Type': contentType },
+      headers: { 'Content-Type': contentType || 'application/json' },
       body: rawBody || undefined,
-    })
+    });
 
-    const firstPayload = await firstRes.clone().json().catch(() => null)
+    const firstPayload = await firstRes.clone().json().catch(() => null);
 
-    // Some backends define signup fields as Form() instead of JSON body.
-    // If JSON was rejected as "all required body fields missing", retry as form-urlencoded.
+    // If JSON was rejected with 422 "all body fields missing" → retry as form-urlencoded
+    // Some FastAPI endpoints define fields as Form() instead of Body()
     if (firstRes.status === 422 && isMissingBodyFields422(firstPayload)) {
-      const asJson = JSON.parse(rawBody || '{}') as Record<string, unknown>
-      const form = new URLSearchParams()
+      const asJson = JSON.parse(rawBody || '{}') as Record<string, unknown>;
+      const form = new URLSearchParams();
 
       for (const [key, value] of Object.entries(asJson)) {
-        if (value === undefined || value === null) continue
-        if (typeof value === 'object') continue
-        form.set(key, String(value))
+        if (value === undefined || value === null || typeof value === 'object') continue;
+        form.set(key, String(value));
       }
 
       const retryRes = await backendFetch('/users', {
         method: 'POST',
         headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
         body: form.toString(),
-      })
-
-      return toNextJson(retryRes)
+      });
+      return toNextResponse(retryRes);
     }
 
-    return toNextJson(firstRes)
+    return toNextResponse(firstRes);
   } catch (error) {
     return NextResponse.json(
-      { message: error instanceof Error ? error.message : 'Proxy failed' },
+      { message: error instanceof Error ? error.message : 'Signup failed' },
       { status: 500 }
-    )
+    );
   }
 }

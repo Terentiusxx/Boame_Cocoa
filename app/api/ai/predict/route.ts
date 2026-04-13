@@ -1,106 +1,95 @@
-import { backendFetch } from '@/lib/backendProxy'
-import { NextResponse } from 'next/server'
+/**
+ * app/api/ai/predict/route.ts
+ * POST /api/ai/predict → backend POST /ai/predict
+ *
+ * Accepts a multipart form with `file` (image blob), forwards to the backend
+ * AI prediction endpoint, and registers the scan in history on success.
+ */
+import { backendFetch } from '@/lib/backendProxy';
+import { cookies } from 'next/headers';
+import { NextResponse } from 'next/server';
+import { COOKIE_NAME, USER_ID_COOKIE } from '@/lib/constants';
+import { unwrapData } from '@/lib/utils';
 
-type WithData<T> = { data: T }
-type MaybeWrapped<T> = T | WithData<T>
-
-function unwrap<T>(value: MaybeWrapped<T>): T {
-  if (value && typeof value === 'object' && 'data' in value) {
-    return (value as WithData<T>).data
-  }
-  return value as T
-}
-
+/** Extract scan_id from any backend prediction response shape */
 function extractScanId(payload: unknown): number | null {
-  const data = unwrap(payload as any)
-  const candidate =
-    (data as any)?.scan_id ??
-    (data as any)?.id ??
-    (data as any)?.data?.scan_id ??
-    (data as any)?.data?.id
-
-  const asNumber = typeof candidate === 'number' ? candidate : Number(String(candidate ?? ''))
-  return Number.isFinite(asNumber) && asNumber > 0 ? asNumber : null
+  const data = unwrapData(payload as { data?: unknown }) ?? payload;
+  const candidate = (data as Record<string, unknown>)?.scan_id ?? (data as Record<string, unknown>)?.id;
+  const n = Number(candidate);
+  return Number.isFinite(n) && n > 0 ? n : null;
 }
 
-async function getUserIdFromDashboard() {
-  const dashRes = await backendFetch('/users/dashboard', { method: 'GET' })
-  if (!dashRes.ok) return null
-  const data = await dashRes.json().catch(() => null)
-  const userId =
-    data?.user_id ??
-    data?.id ??
-    data?.data?.user_id ??
-    data?.data?.id ??
-    data?.user?.user_id ??
-    data?.user?.id
-  return userId ? Number(userId) : null
+/** Get userId from cookie (fastest) or dashboard API (fallback) */
+async function getUserId(): Promise<number | null> {
+  const fromCookie = (await cookies()).get(USER_ID_COOKIE)?.value;
+  if (fromCookie) {
+    const n = Number(fromCookie);
+    if (Number.isFinite(n) && n > 0) return n;
+  }
+  const res = await backendFetch('/users/dashboard');
+  if (!res.ok) return null;
+  const data = await res.json().catch(() => null) as Record<string, unknown> | null;
+  const id = data?.user_id ?? data?.id ??
+    (data?.data as Record<string, unknown> | undefined)?.user_id ??
+    (data?.user as Record<string, unknown> | undefined)?.user_id;
+  return id ? Number(id) : null;
 }
 
 export async function POST(req: Request) {
   try {
-    const url = new URL(req.url)
-    const latitude = url.searchParams.get('latitude')
-    const longitude = url.searchParams.get('longitude')
-
-    const params = new URLSearchParams()
-    if (latitude) params.set('latitude', latitude)
-    if (longitude) params.set('longitude', longitude)
-
-    const qs = params.toString()
-    const path = `/ai/predict${qs ? `?${qs}` : ''}`
-    const requestContentType = req.headers.get('content-type')
-    const body = await req.arrayBuffer()
-
-    const headers = new Headers()
-    if (requestContentType) {
-      headers.set('content-type', requestContentType)
+    // Require auth in production — dev mode skips this
+    const token = (await cookies()).get(COOKIE_NAME)?.value;
+    if (!token && process.env.NEXT_PUBLIC_DEV_MODE !== 'true') {
+      return NextResponse.json({ message: 'Not authenticated' }, { status: 401 });
     }
 
-    const res = await backendFetch(path, {
-      method: 'POST',
-      headers,
-      body,
-    })
+    // Forward optional geo-coordinates from the query string
+    const { searchParams } = new URL(req.url);
+    const qs = new URLSearchParams();
+    const lat = searchParams.get('latitude');
+    const lng = searchParams.get('longitude');
+    if (lat) qs.set('latitude', lat);
+    if (lng) qs.set('longitude', lng);
 
-    const responseContentType = res.headers.get('content-type') || ''
-    if (responseContentType.includes('application/json')) {
-      const json = await res.json().catch(() => null)
+    const path = `/ai/predict${qs.toString() ? `?${qs}` : ''}`;
 
-      // Best-effort: save scan to history when prediction returns a scan id.
-      if (res.ok) {
-        const scanId = extractScanId(json)
-        if (scanId) {
-          const userId = await getUserIdFromDashboard()
-          if (userId) {
-            const historyRes = await backendFetch(`/history/${userId}/${scanId}`, {
-              method: 'POST',
-            }).catch(() => null)
+    // Pass the raw body (multipart form with image) straight through to backend
+    const contentType = req.headers.get('content-type');
+    const body = await req.arrayBuffer();
+    const headers = new Headers();
+    if (contentType) headers.set('content-type', contentType);
 
-            // Retry once on transient backend failure
-            if (historyRes && !historyRes.ok && historyRes.status >= 500) {
-              await backendFetch(`/history/${userId}/${scanId}`, { method: 'POST' }).catch(
-                () => null
-              )
-            }
-          }
+    const res = await backendFetch(path, { method: 'POST', headers, body });
+
+    const contentTypeRes = res.headers.get('content-type') ?? '';
+    if (!contentTypeRes.includes('application/json')) {
+      const text = await res.text().catch(() => '');
+      return NextResponse.json(
+        { message: text || (res.ok ? 'OK' : 'Request failed') },
+        { status: res.status }
+      );
+    }
+
+    const json = await res.json().catch(() => null);
+
+    // Best-effort: save scan to history so it shows up on the home page
+    if (res.ok) {
+      const scanId = extractScanId(json);
+      if (scanId) {
+        const userId = await getUserId();
+        if (userId) {
+          await backendFetch(`/history/${userId}/${scanId}`, { method: 'POST' }).catch(() => null);
         }
       }
-
-      return NextResponse.json(json ?? { message: 'Invalid JSON from backend' }, {
-        status: res.status,
-      })
     }
 
-    const text = await res.text().catch(() => '')
-    return NextResponse.json(
-      text ? { message: text } : { message: res.ok ? 'OK' : 'Request failed' },
-      { status: res.status }
-    )
+    return NextResponse.json(json ?? { message: 'Invalid JSON from backend' }, {
+      status: res.status,
+    });
   } catch (error) {
     return NextResponse.json(
-      { message: error instanceof Error ? error.message : 'Failed' },
+      { message: error instanceof Error ? error.message : 'Prediction failed' },
       { status: 500 }
-    )
+    );
   }
 }

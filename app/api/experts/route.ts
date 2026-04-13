@@ -1,15 +1,20 @@
-import { proxyBackendJson } from '@/lib/backendProxy'
+/**
+ * app/api/experts/route.ts
+ * GET /api/experts → backend GET /experts
+ * Supports optional ?skip= and ?limit= query params for pagination.
+ */
+import { proxyBackendJson } from '@/lib/backendProxy';
 
 export async function GET(req: Request) {
-  const url = new URL(req.url)
-  const params = url.searchParams
+  const { searchParams } = new URL(req.url);
+  const qs = new URLSearchParams();
 
-  const skip = params.get('skip')
-  const limit = params.get('limit')
+  // Forward pagination params if provided by the client
+  const skip  = searchParams.get('skip');
+  const limit = searchParams.get('limit');
+  if (skip)  qs.set('skip', skip);
+  if (limit) qs.set('limit', limit);
 
-  const qs = new URLSearchParams()
-  if (skip) qs.set('skip', skip)
-  if (limit) qs.set('limit', limit)
-
-  return proxyBackendJson(req, `/experts${qs.toString() ? `?${qs}` : ''}`, { method: 'GET' })
+  const path = qs.toString() ? `/experts?${qs}` : '/experts';
+  return proxyBackendJson(path);
 }
