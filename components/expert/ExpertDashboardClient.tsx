@@ -77,8 +77,8 @@ export default function ExpertDashboardClient({
     router.replace(EXPERT_ROUTES.LOGIN);
   };
 
-  const name       = profile ? `${profile.first_name} ${profile.last_name}` : 'Expert';
-  const initials   = profile ? `${profile.first_name[0] ?? ''}${profile.last_name[0] ?? ''}`.toUpperCase() : 'E';
+  const name     = profile ? `${profile.first_name ?? ''} ${profile.last_name ?? ''}`.trim() || 'Expert' : 'Expert';
+  const initials = profile ? `${profile.first_name?.[0] ?? ''}${profile.last_name?.[0] ?? ''}`.toUpperCase() || 'E' : 'E';
   const rating     = profile?.rating ?? (dashboard?.average_rating as number | undefined);
   const openCount  = (dashboard?.open_consultations ?? dashboard?.total_open   ?? 0) as number;
   const doneCount  = (dashboard?.resolved_consultations ?? dashboard?.total_resolved ?? 0) as number;

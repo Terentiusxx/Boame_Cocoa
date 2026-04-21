@@ -25,7 +25,7 @@ export default async function ExpertProfilePage() {
   let profile: ExpertProfile | null = null;
   try {
     const base = (process.env.NEXT_PUBLIC_API_URL ?? '').trim().replace(/\/+$/, '');
-    const res  = await fetch(`${base}/experts/profile/me`, {
+    const res  = await fetch(`${base}/experts/me`, {
       headers: { Authorization: `Bearer ${token}` },
       cache: 'no-store',
     });

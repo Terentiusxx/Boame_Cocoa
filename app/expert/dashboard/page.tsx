@@ -41,7 +41,7 @@ export default async function ExpertDashboardPage() {
 
   const base = getBackendUrl();
   const [profile, dashboard] = await Promise.all([
-    safeFetch<ExpertProfile>(`${base}/experts/profile/me`, token),
+    safeFetch<ExpertProfile>(`${base}/experts/me`, token),
     safeFetch<DashboardData>(`${base}/experts/dashboard`, token),
   ]);
 
