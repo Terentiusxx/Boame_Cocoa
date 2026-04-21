@@ -11,7 +11,7 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { FiArrowLeft, FiChevronRight } from 'react-icons/fi';
 import VoiceRecorder from '@/components/VoiceRecorder';
-import { ROUTES, SESSION_KEYS } from '@/lib/constants';
+import { SESSION_KEYS } from '@/lib/constants';
 import { extractErrorMessage } from '@/lib/utils';
 
 export default function VoiceDescribeClient({ scanId }: { scanId?: string }) {
@@ -49,7 +49,10 @@ export default function VoiceDescribeClient({ scanId }: { scanId?: string }) {
       }
 
       setDone(true);
-      setTimeout(() => router.replace(ROUTES.RESULTS), 900);
+      // Navigate to the scan's result page if we have a scanId, else use the
+      // predict route which reads the sessionStorage prediction written above.
+      const destination = scanId ? `/results/${scanId}` : '/results/predict';
+      setTimeout(() => router.replace(destination), 900);
     } catch (err) {
       setError(extractErrorMessage(err, 'Connection failed. Please try again.'));
     } finally {
@@ -73,7 +76,7 @@ export default function VoiceDescribeClient({ scanId }: { scanId?: string }) {
 
         {/* Skip to results */}
         <Link
-          href={ROUTES.RESULTS}
+          href={scanId ? `/results/${scanId}` : '/results/predict'}
           className="text-sm text-brand-hyperlink font-medium flex items-center gap-1 hover:opacity-70 transition"
         >
           Skip <FiChevronRight size={15} />
