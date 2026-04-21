@@ -10,6 +10,8 @@
  *
  * Client mutations (PATCH):
  *   /api/experts/my-consultations/:id { action: 'accept' | 'resolve' }
+ *
+ * Design matches the user-side inner-screen pattern.
  */
 'use client';
 
@@ -40,7 +42,7 @@ const STATUS_COLOR: Record<string, string> = {
 function InfoRow({ label, value }: { label: string; value: React.ReactNode }) {
   return (
     <div className="flex items-start justify-between gap-2 py-3 border-b border-gray-50 last:border-0">
-      <span className="text-xs text-gray-400 w-24 shrink-0">{label}</span>
+      <span className="text-xs text-brand-sub-text w-24 shrink-0">{label}</span>
       <span className="text-xs font-medium text-gray-800 text-right">{value}</span>
     </div>
   );
@@ -56,11 +58,11 @@ export default function ExpertConsultationDetailClient({
   consultId: string;
 }) {
   const router = useRouter();
-  const [status,         setStatus]         = useState(consultation?.status ?? 'Open');
-  const [actionLoading,  setActionLoading]  = useState<'accept' | 'resolve' | null>(null);
-  const [resolutionNote, setResolutionNote] = useState(consultation?.resolution_note ?? '');
-  const [showResolveForm,setShowResolveForm]= useState(false);
-  const [error,          setError]          = useState<string | null>(null);
+  const [status,          setStatus]          = useState(consultation?.status ?? 'Open');
+  const [actionLoading,   setActionLoading]   = useState<'accept' | 'resolve' | null>(null);
+  const [resolutionNote,  setResolutionNote]  = useState(consultation?.resolution_note ?? '');
+  const [showResolveForm, setShowResolveForm] = useState(false);
+  const [error,           setError]           = useState<string | null>(null);
 
   const doAction = async (action: 'accept' | 'resolve') => {
     setError(null);
@@ -88,46 +90,55 @@ export default function ExpertConsultationDetailClient({
     }
   };
 
+  // ── Not found ──────────────────────────────────────────────────────────────
   if (!consultation) {
     return (
-      <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center px-8 text-center">
-        <p className="text-gray-500 mb-4">Consultation not found.</p>
-        <button type="button" onClick={() => router.replace(EXPERT_ROUTES.CONSULTATIONS)}
-          className="rounded-2xl bg-primary-green px-6 py-3 text-white font-semibold text-sm hover:opacity-90 transition">
+      <div className="max-w-mobile mx-auto min-h-screen bg-background shadow-mobile flex flex-col items-center justify-center px-8 text-center">
+        <p className="text-brand-sub-text mb-4">Consultation not found.</p>
+        <button
+          type="button"
+          onClick={() => router.replace(EXPERT_ROUTES.CONSULTATIONS)}
+          className="rounded-brand bg-brand-buttons px-6 py-3 text-white font-semibold text-sm hover:opacity-90 transition"
+        >
           ← Back to Consultations
         </button>
       </div>
     );
   }
 
-  const statusStyle = STATUS_COLOR[status] ?? STATUS_COLOR.Open!;
-  const isOpen      = status === 'Open';
-  const isInProgress= status === 'In_Progress';
+  const statusStyle  = STATUS_COLOR[status] ?? STATUS_COLOR.Open!;
+  const isOpen       = status === 'Open';
+  const isInProgress = status === 'In_Progress';
 
   return (
-    <div className="min-h-screen bg-gray-50 pb-10">
+    <div className="max-w-mobile mx-auto min-h-screen bg-background relative shadow-mobile pb-10">
 
-      {/* Header */}
-      <div className="bg-gradient-to-br from-green-700 to-emerald-800 px-5 pt-12 pb-8 relative overflow-hidden">
-        <div className="absolute inset-0 opacity-10">
-          <div className="absolute -top-8 -right-8 w-40 h-40 rounded-full bg-white" />
-        </div>
-        <div className="relative flex items-center justify-between mb-4">
-          <button type="button" onClick={() => router.replace(EXPERT_ROUTES.CONSULTATIONS)}
-            className="w-9 h-9 rounded-full bg-white/20 flex items-center justify-center text-white hover:bg-white/30 transition">
-            <FiArrowLeft size={18} />
-          </button>
-          <h1 className="text-white text-lg font-bold">Consultation</h1>
-          <span className={`rounded-full border px-3 py-1 text-xs font-semibold ${statusStyle}`}>
-            {status.replace('_', ' ')}
-          </span>
-        </div>
-        <p className="relative text-white font-semibold text-base line-clamp-2 leading-snug">
+      {/* ── Top bar ──────────────────────────────────────────────────── */}
+      <div className="flex items-center justify-between px-5 pt-12 pb-4">
+        <button
+          type="button"
+          onClick={() => router.replace(EXPERT_ROUTES.CONSULTATIONS)}
+          aria-label="Go back"
+          className="w-9 h-9 rounded-full bg-gray-100 flex items-center justify-center text-gray-600 hover:bg-gray-200 transition"
+        >
+          <FiArrowLeft size={18} />
+        </button>
+
+        <h1 className="text-base font-bold text-brand-text-titles">Consultation</h1>
+
+        <span className={`rounded-full border px-3 py-1 text-xs font-semibold ${statusStyle}`}>
+          {status.replace('_', ' ')}
+        </span>
+      </div>
+
+      {/* ── Subject ──────────────────────────────────────────────────── */}
+      <div className="px-5 mb-5">
+        <p className="text-lg font-bold text-brand-text-titles leading-snug line-clamp-3">
           {consultation.subject}
         </p>
       </div>
 
-      <div className="px-5 py-4 space-y-4">
+      <div className="px-5 space-y-4">
 
         {/* Error */}
         {error && (
@@ -137,11 +148,11 @@ export default function ExpertConsultationDetailClient({
         )}
 
         {/* Metadata card */}
-        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm px-5 py-2">
-          <InfoRow label="Farmer ID"     value={<div className="flex items-center gap-1"><FiUser size={12} /> #{consultation.user_id}</div>} />
-          <InfoRow label="Priority"      value={<span className="font-bold">{consultation.priority}</span>} />
-          <InfoRow label="Opened"        value={formatDateTime(consultation.created_at)} />
-          <InfoRow label="Last Updated"  value={formatDateTime(consultation.updated_at)} />
+        <div className="bg-white rounded-2xl border border-gray-100 shadow-card px-5 py-2">
+          <InfoRow label="Farmer ID"    value={<div className="flex items-center gap-1"><FiUser size={12} /> #{consultation.user_id}</div>} />
+          <InfoRow label="Priority"     value={<span className="font-bold">{consultation.priority}</span>} />
+          <InfoRow label="Opened"       value={formatDateTime(consultation.created_at)} />
+          <InfoRow label="Last Updated" value={formatDateTime(consultation.updated_at)} />
           {consultation.scan_id && (
             <InfoRow label="Scan ID" value={`#${consultation.scan_id}`} />
           )}
@@ -150,8 +161,8 @@ export default function ExpertConsultationDetailClient({
         {/* Description */}
         {consultation.description && (
           <div>
-            <h2 className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-2 px-1">Farmer's Message</h2>
-            <div className="bg-white rounded-2xl border border-gray-100 shadow-sm px-5 py-4">
+            <h2 className="text-xs font-bold text-brand-sub-text uppercase tracking-widest mb-2">Farmer{`'`}s Message</h2>
+            <div className="bg-white rounded-2xl border border-gray-100 shadow-card px-5 py-4">
               <p className="text-sm text-gray-700 leading-relaxed">{consultation.description}</p>
             </div>
           </div>
@@ -160,7 +171,7 @@ export default function ExpertConsultationDetailClient({
         {/* Resolution note (if resolved) */}
         {consultation.resolution_note && status === 'Resolved' && (
           <div>
-            <h2 className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-2 px-1">Resolution Note</h2>
+            <h2 className="text-xs font-bold text-brand-sub-text uppercase tracking-widest mb-2">Resolution Note</h2>
             <div className="bg-green-50 rounded-2xl border border-green-100 px-5 py-4">
               <p className="text-sm text-green-800 leading-relaxed">{consultation.resolution_note}</p>
             </div>
@@ -170,7 +181,7 @@ export default function ExpertConsultationDetailClient({
         {/* Resolve form */}
         {showResolveForm && isInProgress && (
           <div>
-            <h2 className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-2 px-1">Resolution Note</h2>
+            <h2 className="text-xs font-bold text-brand-sub-text uppercase tracking-widest mb-2">Resolution Note</h2>
             <textarea
               value={resolutionNote}
               onChange={(e) => setResolutionNote(e.target.value)}
@@ -182,18 +193,25 @@ export default function ExpertConsultationDetailClient({
         )}
 
         {/* Action buttons */}
-        <div className="space-y-3">
+        <div className="space-y-3 pt-2">
           {isOpen && (
-            <button type="button" onClick={() => void doAction('accept')} disabled={!!actionLoading}
-              className="w-full flex items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-green-600 to-emerald-700 py-4 text-white font-semibold text-base hover:opacity-90 transition active:scale-95 disabled:opacity-60">
+            <button
+              type="button"
+              onClick={() => void doAction('accept')}
+              disabled={!!actionLoading}
+              className="w-full flex items-center justify-center gap-2 rounded-brand bg-brand-buttons py-4 text-white font-semibold text-base hover:opacity-90 transition active:scale-95 disabled:opacity-60"
+            >
               <FiClock size={18} />
               {actionLoading === 'accept' ? 'Accepting…' : 'Accept Consultation'}
             </button>
           )}
 
           {isInProgress && !showResolveForm && (
-            <button type="button" onClick={() => setShowResolveForm(true)}
-              className="w-full flex items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-green-600 to-emerald-700 py-4 text-white font-semibold text-base hover:opacity-90 transition active:scale-95">
+            <button
+              type="button"
+              onClick={() => setShowResolveForm(true)}
+              className="w-full flex items-center justify-center gap-2 rounded-brand bg-brand-buttons py-4 text-white font-semibold text-base hover:opacity-90 transition active:scale-95"
+            >
               <FiCheck size={18} />
               Mark as Resolved
             </button>
@@ -201,22 +219,29 @@ export default function ExpertConsultationDetailClient({
 
           {showResolveForm && isInProgress && (
             <>
-              <button type="button" onClick={() => void doAction('resolve')} disabled={!!actionLoading}
-                className="w-full flex items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-green-600 to-emerald-700 py-4 text-white font-semibold text-base hover:opacity-90 transition active:scale-95 disabled:opacity-60">
+              <button
+                type="button"
+                onClick={() => void doAction('resolve')}
+                disabled={!!actionLoading}
+                className="w-full flex items-center justify-center gap-2 rounded-brand bg-brand-buttons py-4 text-white font-semibold text-base hover:opacity-90 transition active:scale-95 disabled:opacity-60"
+              >
                 <FiCheck size={18} />
                 {actionLoading === 'resolve' ? 'Resolving…' : 'Confirm Resolution'}
               </button>
-              <button type="button" onClick={() => setShowResolveForm(false)}
-                className="w-full py-3 text-center text-sm text-gray-400 hover:text-gray-600 transition">
+              <button
+                type="button"
+                onClick={() => setShowResolveForm(false)}
+                className="w-full py-3 text-center text-sm text-brand-sub-text hover:text-gray-600 transition"
+              >
                 Cancel
               </button>
             </>
           )}
 
-          {/* Message link (when a thread exists) */}
+          {/* Message thread link */}
           <Link
             href={`/messages/${consultation.consult_id}`}
-            className="flex items-center justify-center gap-2 w-full rounded-2xl bg-gray-100 py-4 text-gray-900 font-semibold text-base hover:bg-gray-200 transition active:scale-95"
+            className="flex items-center justify-center gap-2 w-full rounded-brand bg-gray-100 border border-gray-200 py-4 text-gray-800 font-semibold text-base hover:bg-gray-200 transition active:scale-95"
           >
             <FiMessageCircle size={18} />
             Open Message Thread

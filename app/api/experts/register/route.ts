@@ -16,13 +16,6 @@ function getBackendUrl() {
   return raw.trim().replace(/\/+$/, '');
 }
 
-function decodeJwtPayload(token: string): Record<string, unknown> | null {
-  const parts = token.split('.');
-  if (parts.length < 2) return null;
-  const b64 = (parts[1] ?? '').replace(/-/g, '+').replace(/_/g, '/');
-  try { return JSON.parse(Buffer.from(b64.padEnd(Math.ceil(b64.length / 4) * 4, '='), 'base64').toString()); }
-  catch { return null; }
-}
 
 export async function POST(req: Request) {
   try {
@@ -59,11 +52,24 @@ export async function POST(req: Request) {
 
     const loginData = await loginRes.json() as Record<string, unknown>;
     const token     = (loginData?.access_token ?? loginData?.token) as string | undefined;
-    const expertId  = Number(
-      (created as Record<string, unknown>)?.data
-        ? ((created as { data: Record<string, unknown> }).data?.expert_id)
-        : (created as Record<string, unknown>)?.expert_id
-    );
+
+    // Try all known response shapes for expert_id
+    const raw = created as Record<string, unknown>;
+    const nested = raw?.data as Record<string, unknown> | undefined;
+    const candidateId =
+      nested?.expert_id ??
+      raw?.expert_id ??
+      // fallback: decode JWT
+      (() => {
+        if (!token) return undefined;
+        try {
+          const b64 = token.split('.')[1]?.replace(/-/g, '+').replace(/_/g, '/') ?? '';
+          const payload = JSON.parse(Buffer.from(b64.padEnd(Math.ceil(b64.length / 4) * 4, '='), 'base64').toString()) as Record<string, unknown>;
+          return payload?.expert_id ?? payload?.sub;
+        } catch { return undefined; }
+      })();
+
+    const expertId = Number(candidateId);
 
     if (token && expertId > 0) {
       const jar    = await cookies();
@@ -72,10 +78,7 @@ export async function POST(req: Request) {
       jar.set(EXPERT_ID_COOKIE,   String(expertId), { ...COOKIE_OPTIONS, secure: isProd });
     }
 
-    const payload = decodeJwtPayload(token ?? '');
-    void payload; // satisfies linter
-
-    return NextResponse.json({ ok: true, autoLogin: true, expert_id: expertId });
+    return NextResponse.json({ ok: true, autoLogin: expertId > 0, expert_id: expertId > 0 ? expertId : undefined });
   } catch (error) {
     return NextResponse.json(
       { message: error instanceof Error ? error.message : 'Registration failed' },

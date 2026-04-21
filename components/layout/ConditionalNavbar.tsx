@@ -18,7 +18,9 @@ const HIDE_NAV_ROUTES = new Set<string>([
 
 export default function ConditionalNavbar() {
   const pathname = usePathname()
-  const shouldShow = pathname ? !HIDE_NAV_ROUTES.has(pathname) : true
+  const shouldShow = pathname
+    ? !HIDE_NAV_ROUTES.has(pathname) && !pathname.startsWith('/expert')
+    : true
 
   useEffect(() => {
     if (!shouldShow) return

@@ -9,6 +9,8 @@
  *
  * Client mutations:
  *   PUT /api/experts/me (multipart — includes image_file for backend → Cloudinary)
+ *
+ * Design matches the user-side settings/profile pattern.
  */
 'use client';
 
@@ -34,10 +36,33 @@ const SPECIALIZATIONS = [
   'Post-Harvest Management', 'Other',
 ] as const;
 
-// ─── Component ────────────────────────────────────────────────────────────────
+// ─── Shared styles ────────────────────────────────────────────────────────────
 
-const inputCls = 'w-full px-4 py-3.5 bg-gray-50 border border-gray-200 rounded-xl text-gray-900 outline-none transition focus:border-primary-green focus:ring-2 focus:ring-primary-green/20 focus:bg-white text-sm disabled:opacity-60';
-const labelCls = 'block text-sm font-medium text-gray-700 mb-1.5';
+const inputCls = 'w-full rounded-brand border border-gray-200 bg-white px-4 py-3 text-brand-input-text placeholder-gray-400 outline-none transition focus:border-primary-green focus:ring-2 focus:ring-primary-green/20 disabled:opacity-60 text-sm';
+
+// ─── Helper sub-components ────────────────────────────────────────────────────
+
+function Section({ title, children }: { title: string; children: React.ReactNode }) {
+  return (
+    <div className="rounded-2xl bg-white border border-gray-100 shadow-card overflow-hidden">
+      <div className="px-4 py-3 border-b border-gray-50">
+        <p className="text-xs font-semibold text-brand-sub-text uppercase tracking-wider">{title}</p>
+      </div>
+      <div className="p-4 space-y-4">{children}</div>
+    </div>
+  );
+}
+
+function Field({ label, id, children }: { label: string; id: string; children: React.ReactNode }) {
+  return (
+    <div>
+      <label htmlFor={id} className="block text-sm font-medium text-gray-700 mb-1.5">{label}</label>
+      {children}
+    </div>
+  );
+}
+
+// ─── Component ────────────────────────────────────────────────────────────────
 
 export default function ExpertProfileClient({
   initialProfile,
@@ -49,7 +74,6 @@ export default function ExpertProfileClient({
   const router  = useRouter();
   const fileRef = useRef<HTMLInputElement>(null);
 
-  // Initialise from server-fetched props
   const [firstName, setFirstName] = useState(initialProfile?.first_name  ?? '');
   const [lastName,  setLastName]  = useState(initialProfile?.last_name   ?? '');
   const [email,     setEmail]     = useState(initialProfile?.email       ?? '');
@@ -61,7 +85,7 @@ export default function ExpertProfileClient({
   const [licenseId, setLicenseId] = useState(initialProfile?.license_id ?? '');
   const [city,      setCity]      = useState(initialProfile?.city        ?? '');
   const [region,    setRegion]    = useState(initialProfile?.region      ?? '');
-  const [country,   setCountry]  = useState(initialProfile?.country     ?? '');
+  const [country,   setCountry]   = useState(initialProfile?.country     ?? '');
   const [photoFile, setPhotoFile] = useState<File | null>(null);
   const [photoUrl,  setPhotoUrl]  = useState<string | null>(initialProfile?.image_url ?? null);
 
@@ -82,21 +106,20 @@ export default function ExpertProfileClient({
     setSaving(true);
 
     try {
-      // Build multipart form data — backend PUT /experts/:id accepts image_file binary
       const fd = new FormData();
-      if (firstName)  fd.append('first_name',       firstName);
-      if (lastName)   fd.append('last_name',        lastName);
-      if (email)      fd.append('email',            email);
-      if (phone)      fd.append('telephone',        phone);
-      if (spec)       fd.append('specialization',   spec);
-      if (org)        fd.append('organization',     org);
-      if (bio)        fd.append('bio',              bio);
+      if (firstName)  fd.append('first_name',        firstName);
+      if (lastName)   fd.append('last_name',         lastName);
+      if (email)      fd.append('email',             email);
+      if (phone)      fd.append('telephone',         phone);
+      if (spec)       fd.append('specialization',    spec);
+      if (org)        fd.append('organization',      org);
+      if (bio)        fd.append('bio',               bio);
       if (years)      fd.append('years_experienced', years);
-      if (licenseId)  fd.append('license_id',       licenseId);
-      if (city)       fd.append('city',             city);
-      if (region)     fd.append('region',           region);
-      if (country)    fd.append('country',          country);
-      if (photoFile)  fd.append('image_file',       photoFile, photoFile.name);
+      if (licenseId)  fd.append('license_id',        licenseId);
+      if (city)       fd.append('city',              city);
+      if (region)     fd.append('region',            region);
+      if (country)    fd.append('country',           country);
+      if (photoFile)  fd.append('image_file',        photoFile, photoFile.name);
 
       const res = await fetch('/api/experts/me', { method: 'PUT', body: fd });
 
@@ -118,61 +141,77 @@ export default function ExpertProfileClient({
   const initials = `${firstName[0] ?? ''}${lastName[0] ?? ''}`.toUpperCase();
 
   return (
-    <div className="min-h-screen bg-gray-50 pb-10">
+    <div className="max-w-mobile mx-auto min-h-screen bg-background relative shadow-mobile pb-10">
 
-      {/* Header */}
-      <div className="bg-gradient-to-br from-green-700 to-emerald-800 px-5 pt-12 pb-10 relative overflow-hidden">
-        <div className="absolute inset-0 opacity-10">
-          <div className="absolute -top-8 -right-8 w-40 h-40 rounded-full bg-white" />
-          <div className="absolute -bottom-10 -left-8 w-28 h-28 rounded-full bg-white" />
-        </div>
-        <div className="relative flex items-center justify-between mb-6">
-          <button type="button" onClick={() => router.replace(EXPERT_ROUTES.DASHBOARD)}
-            className="w-9 h-9 rounded-full bg-white/20 flex items-center justify-center text-white hover:bg-white/30 transition">
-            <FiArrowLeft size={18} />
-          </button>
-          <h1 className="text-white text-lg font-bold">Edit Profile</h1>
-          <div className="w-9" />
-        </div>
+      {/* ── Top bar ──────────────────────────────────────────────────── */}
+      <div className="flex items-center justify-between px-5 pt-12 pb-4">
+        <button
+          type="button"
+          onClick={() => router.replace(EXPERT_ROUTES.DASHBOARD)}
+          aria-label="Go back"
+          className="w-9 h-9 rounded-full bg-gray-100 flex items-center justify-center text-gray-600 hover:bg-gray-200 transition"
+        >
+          <FiArrowLeft size={18} />
+        </button>
 
-        {/* Photo + name */}
-        <div className="relative flex flex-col items-center gap-3">
-          <div className="relative">
-            <button type="button" onClick={() => fileRef.current?.click()}
-              className="relative w-24 h-24 rounded-2xl overflow-hidden bg-white/30 group shadow-lg">
-              {photoUrl ? (
-                <Image src={photoUrl} alt="Profile" fill className="object-cover" />
-              ) : (
-                <span className="flex items-center justify-center h-full text-white text-3xl font-bold">{initials}</span>
-              )}
-              <div className="absolute inset-0 bg-black/30 opacity-0 group-hover:opacity-100 transition flex items-center justify-center">
-                <FiCamera size={22} className="text-white" />
-              </div>
-            </button>
-            <div className="absolute -bottom-1 -right-1 w-8 h-8 bg-white rounded-full flex items-center justify-center shadow border-2 border-green-600">
-              <FiCamera size={13} className="text-green-600" />
+        <h1 className="text-base font-bold text-brand-text-titles">Edit Profile</h1>
+
+        <div className="w-9" />
+      </div>
+
+      {/* ── Avatar hero ──────────────────────────────────────────────── */}
+      <div className="flex flex-col items-center gap-3 pb-8 px-5">
+        <div className="relative">
+          {/* Photo button */}
+          <button
+            type="button"
+            onClick={() => fileRef.current?.click()}
+            className="relative w-24 h-24 rounded-full overflow-hidden bg-brand-buttons group shadow-card"
+          >
+            {photoUrl ? (
+              <Image src={photoUrl} alt="Profile" fill className="object-cover" />
+            ) : (
+              <span className="flex items-center justify-center h-full text-white text-3xl font-bold">
+                {initials}
+              </span>
+            )}
+            <div className="absolute inset-0 bg-black/30 opacity-0 group-hover:opacity-100 transition flex items-center justify-center">
+              <FiCamera size={22} className="text-white" />
             </div>
+          </button>
+
+          {/* Camera badge */}
+          <div className="absolute -bottom-1 -right-1 w-8 h-8 bg-white rounded-full flex items-center justify-center shadow border-2 border-brand-buttons">
+            <FiCamera size={13} className="text-brand-buttons" />
           </div>
-          <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={handlePhoto} />
-          <div className="text-center">
-            <p className="text-white font-semibold text-base">{firstName} {lastName}</p>
-            {spec && <p className="text-green-200 text-sm">{spec}</p>}
+        </div>
+
+        <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={handlePhoto} />
+
+        <div className="text-center">
+          <p className="font-semibold text-brand-text-titles">{firstName} {lastName}</p>
+          {spec && <p className="text-sm text-brand-sub-text mt-0.5">{spec}</p>}
+
+          <div className="flex items-center justify-center gap-3 mt-1.5">
             {initialProfile?.is_verified && (
-              <span className="inline-flex items-center gap-1 mt-1 rounded-full bg-white/20 px-2.5 py-0.5 text-[11px] font-semibold text-white">
-                <FiCheck size={11} /> Verified
+              <span className="inline-flex items-center gap-1 rounded-full bg-green-50 border border-green-200 px-2.5 py-0.5 text-[11px] font-semibold text-primary-green">
+                <FiCheck size={10} /> Verified
               </span>
             )}
             {initialProfile?.rating != null && (
-              <div className="flex items-center justify-center gap-1 text-white/80 text-xs mt-1">
-                <FiStar size={12} className="fill-yellow-300 text-yellow-300" />
-                {Number(initialProfile.rating).toFixed(1)} rating
+              <div className="flex items-center gap-1 text-brand-sub-text">
+                <FiStar size={12} className="fill-yellow-400 text-yellow-400" />
+                <span className="text-xs font-semibold">{Number(initialProfile.rating).toFixed(1)}</span>
               </div>
             )}
           </div>
         </div>
       </div>
 
-      <div className="px-5 py-5 space-y-4">
+      {/* ── Form sections ────────────────────────────────────────────── */}
+      <div className="px-5 space-y-4">
+
+        {/* Status messages */}
         {success && (
           <div className="flex items-center gap-2 rounded-xl bg-green-50 border border-green-200 px-4 py-3 text-sm text-green-700">
             <FiCheck size={16} className="shrink-0" /> Profile updated!
@@ -187,11 +226,19 @@ export default function ExpertProfileClient({
         {/* Personal */}
         <Section title="Personal">
           <div className="grid grid-cols-2 gap-3">
-            <Field label="First Name" id="ep-first"><input id="ep-first" type="text" value={firstName} onChange={(e) => setFirstName(e.target.value)} className={inputCls} placeholder="Kwame" disabled={saving} /></Field>
-            <Field label="Last Name"  id="ep-last"><input id="ep-last"  type="text" value={lastName}  onChange={(e) => setLastName(e.target.value)}  className={inputCls} placeholder="Mensah" disabled={saving} /></Field>
+            <Field label="First Name" id="ep-first">
+              <input id="ep-first" type="text" value={firstName} onChange={(e) => setFirstName(e.target.value)} className={inputCls} placeholder="Kwame" disabled={saving} />
+            </Field>
+            <Field label="Last Name" id="ep-last">
+              <input id="ep-last" type="text" value={lastName} onChange={(e) => setLastName(e.target.value)} className={inputCls} placeholder="Mensah" disabled={saving} />
+            </Field>
           </div>
-          <Field label="Email" id="ep-email"><input id="ep-email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} className={inputCls} disabled={saving} /></Field>
-          <Field label="Phone" id="ep-phone"><input id="ep-phone" type="tel" value={phone} onChange={(e) => setPhone(e.target.value)} className={inputCls} placeholder="+233 24 000 0000" disabled={saving} /></Field>
+          <Field label="Email" id="ep-email">
+            <input id="ep-email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} className={inputCls} disabled={saving} />
+          </Field>
+          <Field label="Phone" id="ep-phone">
+            <input id="ep-phone" type="tel" value={phone} onChange={(e) => setPhone(e.target.value)} className={inputCls} placeholder="+233 24 000 0000" disabled={saving} />
+          </Field>
         </Section>
 
         {/* Professional */}
@@ -202,50 +249,45 @@ export default function ExpertProfileClient({
               {SPECIALIZATIONS.map((s) => <option key={s} value={s}>{s}</option>)}
             </select>
           </Field>
-          <Field label="Organization" id="ep-org"><input id="ep-org" type="text" value={org} onChange={(e) => setOrg(e.target.value)} className={inputCls} disabled={saving} /></Field>
+          <Field label="Organization" id="ep-org">
+            <input id="ep-org" type="text" value={org} onChange={(e) => setOrg(e.target.value)} className={inputCls} disabled={saving} />
+          </Field>
           <Field label="Bio" id="ep-bio">
             <textarea id="ep-bio" value={bio} onChange={(e) => setBio(e.target.value)} rows={3} className={`${inputCls} resize-none`} disabled={saving} />
           </Field>
           <div className="grid grid-cols-2 gap-3">
-            <Field label="Years Exp." id="ep-years"><input id="ep-years" type="number" min={0} value={years} onChange={(e) => setYears(e.target.value)} className={inputCls} disabled={saving} /></Field>
-            <Field label="Licence ID" id="ep-lic"><input id="ep-lic" type="text" value={licenseId} onChange={(e) => setLicenseId(e.target.value)} className={inputCls} disabled={saving} /></Field>
+            <Field label="Years Exp." id="ep-years">
+              <input id="ep-years" type="number" min={0} value={years} onChange={(e) => setYears(e.target.value)} className={inputCls} disabled={saving} />
+            </Field>
+            <Field label="Licence ID" id="ep-lic">
+              <input id="ep-lic" type="text" value={licenseId} onChange={(e) => setLicenseId(e.target.value)} className={inputCls} disabled={saving} />
+            </Field>
           </div>
         </Section>
 
         {/* Location */}
         <Section title="Location">
-          <Field label="City" id="ep-city"><input id="ep-city" type="text" value={city} onChange={(e) => setCity(e.target.value)} className={inputCls} disabled={saving} /></Field>
-          <Field label="Region" id="ep-region"><input id="ep-region" type="text" value={region} onChange={(e) => setRegion(e.target.value)} className={inputCls} disabled={saving} /></Field>
-          <Field label="Country" id="ep-country"><input id="ep-country" type="text" value={country} onChange={(e) => setCountry(e.target.value)} className={inputCls} disabled={saving} /></Field>
+          <Field label="City" id="ep-city">
+            <input id="ep-city" type="text" value={city} onChange={(e) => setCity(e.target.value)} className={inputCls} disabled={saving} />
+          </Field>
+          <Field label="Region" id="ep-region">
+            <input id="ep-region" type="text" value={region} onChange={(e) => setRegion(e.target.value)} className={inputCls} disabled={saving} />
+          </Field>
+          <Field label="Country" id="ep-country">
+            <input id="ep-country" type="text" value={country} onChange={(e) => setCountry(e.target.value)} className={inputCls} disabled={saving} />
+          </Field>
         </Section>
 
-        <button type="button" onClick={() => void handleSave()} disabled={saving}
-          className="w-full rounded-2xl bg-gradient-to-r from-green-600 to-emerald-700 py-4 text-white font-semibold text-base hover:opacity-90 transition active:scale-95 disabled:opacity-60">
+        {/* Save */}
+        <button
+          type="button"
+          onClick={() => void handleSave()}
+          disabled={saving}
+          className="w-full rounded-brand bg-brand-buttons py-4 text-white font-semibold text-base hover:opacity-90 transition active:scale-95 disabled:opacity-60"
+        >
           {saving ? 'Saving…' : 'Save Changes'}
         </button>
       </div>
-    </div>
-  );
-}
-
-// ── Small helper components ────────────────────────────────────────────────────
-
-function Section({ title, children }: { title: string; children: React.ReactNode }) {
-  return (
-    <div className="rounded-2xl bg-white border border-gray-100 shadow-sm overflow-hidden">
-      <div className="px-4 py-3 border-b border-gray-50">
-        <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider">{title}</p>
-      </div>
-      <div className="p-4 space-y-4">{children}</div>
-    </div>
-  );
-}
-
-function Field({ label, id, children }: { label: string; id: string; children: React.ReactNode }) {
-  return (
-    <div>
-      <label htmlFor={id} className="block text-sm font-medium text-gray-700 mb-1.5">{label}</label>
-      {children}
     </div>
   );
 }

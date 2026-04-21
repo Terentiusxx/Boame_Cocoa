@@ -101,7 +101,7 @@ export function formatDateTime(date: Date | string): string {
 export function formatTime(date: Date | string): string {
   const d = typeof date === 'string' ? new Date(date) : date;
   if (Number.isNaN(d.getTime())) return '';
-  return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  return new Intl.DateTimeFormat('en-US', { hour: '2-digit', minute: '2-digit' }).format(d);
 }
 
 // ─── Disease / Urgency Helpers ────────────────────────────────────────────────

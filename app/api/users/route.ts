@@ -2,9 +2,9 @@
  * app/api/users/route.ts
  * POST /api/users → backend POST /users (create account / signup)
  *
- * The backend may expect either JSON or form-urlencoded body.
- * We detect a 422 "all body fields missing" response and automatically
- * retry as form-urlencoded — this handles FastAPI Form() vs Body() schemas.
+ * Multipart requests (including file uploads) are forwarded as-is to the
+ * backend. Plain JSON bodies are retried as form-urlencoded on 422 to
+ * handle FastAPI Form() vs Body() schema differences.
  */
 import { backendFetch } from '@/lib/backendProxy';
 import { NextResponse } from 'next/server';
@@ -40,20 +40,14 @@ export async function POST(req: Request) {
   try {
     const contentType = req.headers.get('content-type') ?? '';
 
-    // ── Multipart form (profile image upload) ───────────────────────────────
+    // ── Multipart form (profile image upload) ─────────────────────────────────
+    // Stream the raw bytes straight through — do NOT re-parse with req.formData()
+    // because re-serialising FormData generates a new boundary that FastAPI rejects.
     if (contentType.includes('multipart/form-data')) {
-      const formData = await req.formData();
-      const form = new URLSearchParams();
-
-      // Convert to url-encoded — file/blob fields are skipped (image sent as data URL string)
-      for (const [key, value] of formData.entries()) {
-        if (typeof value === 'string') form.set(key, value);
-      }
-
       const res = await backendFetch('/users', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-        body: form.toString(),
+        headers: { 'Content-Type': contentType }, // preserve original boundary
+        body: await req.arrayBuffer(),             // raw bytes, no re-encoding
       });
       return toNextResponse(res);
     }

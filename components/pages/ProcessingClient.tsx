@@ -12,7 +12,7 @@
  */
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { FiCheck } from 'react-icons/fi';
 import { SESSION_KEYS, ROUTES } from '@/lib/constants';
@@ -64,9 +64,17 @@ function parseScanId(payload: unknown): number | null {
 
 export default function ProcessingClient() {
   const router = useRouter();
+  /**
+   * useRef persists across React Strict Mode's artificial double-effect invocation
+   * on the SAME component instance — so Effect 2 sees hasRun=true and bails
+   * immediately, preventing a second POST. The ref resets naturally when the user
+   * navigates away (component truly unmounts) and back to /processing.
+   */
+  const hasRun = useRef(false);
 
   useEffect(() => {
-    let cancelled = false;
+    if (hasRun.current) return; // Strict Mode guard — skip the second effect run
+    hasRun.current = true;
 
     const run = async () => {
       const imageRef = sessionStorage.getItem(SESSION_KEYS.SCAN_IMAGE);
@@ -89,11 +97,10 @@ export default function ProcessingClient() {
         });
 
         const payload = await res.json().catch(() => null);
-        const scanId = parseScanId(payload);
+        const scanId  = parseScanId(payload);
 
         if (!res.ok || !scanId) {
-          // Prediction failed — go to unknown results
-          throw new Error(payload?.message ?? 'Prediction failed');
+          throw new Error((payload as Record<string, unknown>)?.message as string ?? 'Prediction failed');
         }
 
         // Store scan results for the results page to read
@@ -101,9 +108,9 @@ export default function ProcessingClient() {
         sessionStorage.setItem(
           SESSION_KEYS.SCAN_PREDICTION,
           JSON.stringify({
-            disease_id: (payload as Record<string, unknown>)?.disease_id ?? null,
+            disease_id:       (payload as Record<string, unknown>)?.disease_id       ?? null,
             confidence_score: (payload as Record<string, unknown>)?.confidence_score ?? null,
-            created_at: new Date().toISOString(),
+            created_at:       new Date().toISOString(),
           })
         );
 
@@ -111,20 +118,18 @@ export default function ProcessingClient() {
         revokeIfBlob(imageRef);
         sessionStorage.removeItem(SESSION_KEYS.SCAN_IMAGE);
 
-        if (!cancelled) {
-          // Go to voice description step before showing results
-          router.replace(`${ROUTES.VOICE_DESCRIBE ?? '/voice-describe'}?scan_id=${scanId}`);
-        }
+        // Navigate to voice description before showing results.
+        // router.replace is safe to call even if the component happened to unmount.
+        router.replace(`${ROUTES.VOICE_DESCRIBE ?? '/voice-describe'}?scan_id=${scanId}`);
       } catch {
-        // On any error, clean up and show unknown result
+        // On any error, clean up and navigate to unknown result
         revokeIfBlob(sessionStorage.getItem(SESSION_KEYS.SCAN_IMAGE));
         sessionStorage.removeItem(SESSION_KEYS.SCAN_IMAGE);
-        if (!cancelled) router.replace(`${ROUTES.RESULTS}/unknown`);
+        router.replace(`${ROUTES.RESULTS}/unknown`);
       }
     };
 
-    run();
-    return () => { cancelled = true; };
+    void run();
   }, [router]);
 
   return (

@@ -22,9 +22,12 @@ export default function ExpertAuthGuard({ children }: { children: React.ReactNod
 
     const check = async () => {
       try {
-        const res = await fetch('/api/expert-auth/session', { cache: 'no-store' });
-        if (!cancelled && !res.ok) {
+        const res     = await fetch('/api/expert-auth/session', { cache: 'no-store' });
+        const payload = await res.json().catch(() => null) as { authenticated?: boolean } | null;
+        const ok = res.ok && payload?.authenticated === true;
+        if (!cancelled && !ok) {
           router.replace(EXPERT_ROUTES.LOGIN);
+          return;
         }
       } catch {
         if (!cancelled) router.replace(EXPERT_ROUTES.LOGIN);

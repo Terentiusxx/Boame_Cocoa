@@ -4,9 +4,8 @@
  * Registration form. Sends new user data to /api/users then
  * auto-logs in via /api/auth/login.
  *
- * The profile image is captured from the camera/file picker and
- * stored as a base64 data URL string, sent as a field in the POST body.
- * (Upload as an actual file if/when the backend supports it.)
+ * The profile image is sent as a real file via multipart/form-data
+ * (FormData). All other fields are appended as plain text parts.
  */
 'use client';
 
@@ -67,7 +66,8 @@ export default function CreateAccountClient() {
   const [email,      setEmail]      = useState('');
   const [password,   setPassword]   = useState('');
   const [telephone,  setTelephone]  = useState('');
-  const [imageUrl,   setImageUrl]   = useState<string | null>(null); // base64 preview + send value
+  const [imageFile,   setImageFile]   = useState<File | null>(null);   // raw File to send
+  const [previewUrl,  setPreviewUrl]  = useState<string | null>(null); // object-URL for preview only
 
   // UI state
   const [showPass,   setShowPass]   = useState(false);
@@ -75,7 +75,7 @@ export default function CreateAccountClient() {
   const [error,      setError]      = useState<string | null>(null);
   const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
 
-  /** Convert selected file to base64 and preview it */
+  /** Store the raw File and create a lightweight object-URL just for the preview */
   const handleImageChange = (e: ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -86,9 +86,11 @@ export default function CreateAccountClient() {
       return;
     }
 
-    const reader = new FileReader();
-    reader.onload = () => setImageUrl(reader.result as string);
-    reader.readAsDataURL(file);
+    // Revoke any previous object-URL to avoid memory leaks
+    if (previewUrl) URL.revokeObjectURL(previewUrl);
+
+    setImageFile(file);
+    setPreviewUrl(URL.createObjectURL(file));
   };
 
   const handleSubmit = async (e: FormEvent) => {
@@ -105,20 +107,22 @@ export default function CreateAccountClient() {
     setLoading(true);
 
     try {
-      // ── Step 1: Create the user account ──────────────────────────────────
+      // ── Step 1: Build multipart form data ────────────────────────────────
+      const formData = new FormData();
+      formData.append('first_name', firstName.trim());
+      formData.append('last_name',  lastName.trim());
+      formData.append('email',      email.trim().toLowerCase());
+      formData.append('password',   password);
+      if (telephone.trim()) formData.append('telephone', telephone.trim());
+      // Append the image as a real file under the field name the backend expects
+      if (imageFile) formData.append('image_file', imageFile, imageFile.name);
+
+      // ── Step 2: Create the user account ──────────────────────────────────
+      // NOTE: Do NOT set Content-Type manually; the browser adds the
+      //       multipart boundary automatically when body is FormData.
       const createRes = await fetch('/api/users', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          first_name: firstName.trim(),
-          last_name:  lastName.trim(),
-          email:      email.trim().toLowerCase(),
-          password,
-          telephone:  telephone.trim() || undefined,
-          // Profile image sent as base64 string
-          // TODO: Change to FormData with actual File when backend supports multipart upload
-          ...(imageUrl ? { profile_image: imageUrl } : {}),
-        }),
+        body: formData,
       });
 
       if (!createRes.ok) {
@@ -169,8 +173,8 @@ export default function CreateAccountClient() {
               aria-label="Choose profile photo"
               className="relative w-20 h-20 rounded-full bg-gray-100 overflow-hidden border-2 border-dashed border-gray-300 hover:border-primary-green transition group"
             >
-              {imageUrl ? (
-                <Image src={imageUrl} alt="Profile preview" fill className="object-cover" />
+              {previewUrl ? (
+                <Image src={previewUrl} alt="Profile preview" fill className="object-cover" />
               ) : (
                 <span className="flex flex-col items-center justify-center h-full text-gray-400 group-hover:text-primary-green transition">
                   <FiCamera size={22} />

@@ -28,10 +28,9 @@ export default function VoiceDescribeClient({ scanId }: { scanId?: string }) {
     try {
       const form = new FormData();
       form.append('file', blob, 'voice.webm');
+      if (scanId) form.append('scan_id', scanId);
 
-      const endpoint = scanId
-        ? `/api/ai/voice-diagnose?scan_id=${encodeURIComponent(scanId)}`
-        : '/api/ai/voice-diagnose';
+      const endpoint = '/api/ai/voice-diagnose';
 
       const res     = await fetch(endpoint, { method: 'POST', body: form, credentials: 'include' });
       const payload = await res.json().catch(() => null) as Record<string, unknown> | null;

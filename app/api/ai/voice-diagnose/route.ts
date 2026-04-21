@@ -17,23 +17,24 @@ export async function POST(req: Request) {
       return NextResponse.json({ message: 'Not authenticated' }, { status: 401 });
     }
 
-    // Forward optional geo-coordinates
-    const { searchParams } = new URL(req.url);
+    // Forward optional geo-coordinates and required scan_id
+    const formData = await req.formData();
     const qs = new URLSearchParams();
-    const lat = searchParams.get('latitude');
-    const lng = searchParams.get('longitude');
-    if (lat) qs.set('latitude', lat);
-    if (lng) qs.set('longitude', lng);
+    const lat    = formData.get('latitude') as string | null;
+    const lng    = formData.get('longitude') as string | null;
+    const scanId = formData.get('scan_id') as string | null;
+    if (lat)    qs.set('latitude', lat);
+    if (lng)    qs.set('longitude', lng);
+    if (scanId) qs.set('scan_id', scanId);
 
     const path = `/ai/voice-diagnose${qs.toString() ? `?${qs}` : ''}`;
 
-    // Pass the raw audio form data straight through
-    const contentType = req.headers.get('content-type');
-    const body = await req.arrayBuffer();
-    const headers = new Headers();
-    if (contentType) headers.set('content-type', contentType);
+    // Re-build form without scan_id / extra fields — send only the audio file
+    const outForm = new FormData();
+    const file = formData.get('file');
+    if (file) outForm.append('file', file as Blob, 'voice.webm');
 
-    const res = await backendFetch(path, { method: 'POST', headers, body });
+    const res = await backendFetch(path, { method: 'POST', body: outForm });
 
     const contentTypeRes = res.headers.get('content-type') ?? '';
     if (contentTypeRes.includes('application/json')) {

@@ -3,7 +3,7 @@
  * ─────────────────────────────────────────────────────────────
  * Profile editor — mirrors the Create Account form layout.
  * Separate first/last name fields, profile photo, all fields shown.
- * Only PUT and DELETE are client-side fetches (mutations).
+ * Only PATCH and DELETE are client-side fetches (mutations).
  */
 'use client';
 
@@ -24,7 +24,7 @@ type InitialProfile = {
   email?: string;
   telephone?: string;
   role?: string;
-  profile_image?: string;
+  image_url?: string;
 } | null;
 
 // ─── Component ────────────────────────────────────────────────────────────────
@@ -35,28 +35,28 @@ export default function EditProfileClient({ initialProfile }: { initialProfile: 
   const [imageFile, setImageFile] = useState<File | null>(null);
 
   // Individual name fields — matching Create Account form structure
-  const [firstName,  setFirstName]  = useState(initialProfile?.first_name  ?? '');
-  const [midName,    setMidName]    = useState(initialProfile?.mid_name    ?? '');
-  const [lastName,   setLastName]   = useState(initialProfile?.last_name   ?? '');
-  const [email,      setEmail]      = useState(initialProfile?.email       ?? '');
-  const [phone,      setPhone]      = useState(initialProfile?.telephone   ?? '');
-  const [imageUrl,   setImageUrl]   = useState<string | null>(initialProfile?.profile_image ?? null);
+  const [firstName, setFirstName] = useState(initialProfile?.first_name ?? '');
+  const [midName, setMidName] = useState(initialProfile?.mid_name ?? '');
+  const [lastName, setLastName] = useState(initialProfile?.last_name ?? '');
+  const [email, setEmail] = useState(initialProfile?.email ?? '');
+  const [phone, setPhone] = useState(initialProfile?.telephone ?? '');
+  const [imageUrl, setImageUrl] = useState<string | null>(initialProfile?.image_url ?? null);
   const [currentPassword, setCurrentPassword] = useState('');
-  const [newPassword,setNewPassword] = useState('');
-  const [showPass,   setShowPass]   = useState(false);
+  const [newPassword, setNewPassword] = useState('');
+  const [showPass, setShowPass] = useState(false);
 
-  const [saving,   setSaving]   = useState(false);
+  const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
-  const [error,    setError]    = useState<string | null>(null);
-  const [success,  setSuccess]  = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState(false);
 
   const hasProfileChanged =
     firstName !== (initialProfile?.first_name ?? '') ||
-    midName   !== (initialProfile?.mid_name ?? '') ||
-    lastName  !== (initialProfile?.last_name ?? '') ||
-    email     !== (initialProfile?.email ?? '') ||
-    phone     !== (initialProfile?.telephone ?? '') ||
-    imageUrl  !== (initialProfile?.profile_image ?? null);
+    midName !== (initialProfile?.mid_name ?? '') ||
+    lastName !== (initialProfile?.last_name ?? '') ||
+    email !== (initialProfile?.email ?? '') ||
+    phone !== (initialProfile?.telephone ?? '') ||
+    imageUrl !== (initialProfile?.image_url ?? null);
 
   const hasPasswordChanged =
     currentPassword !== '' || newPassword !== '';
@@ -76,9 +76,9 @@ export default function EditProfileClient({ initialProfile }: { initialProfile: 
   };
 
   const handleSave = async () => {
-  setError(null);
-  setSuccess(false);
-  setSaving(true);
+    setError(null);
+    setSuccess(false);
+    setSaving(true);
 
     try {
       // ─────────────────────────────────────────
@@ -94,14 +94,13 @@ export default function EditProfileClient({ initialProfile }: { initialProfile: 
         if (midName) formData.append('mid_name', midName.trim());
         if (phone) formData.append('telephone', phone.trim());
 
-        // ⚠️ Only if you're storing FILE (recommended)
         if (imageFile) {
-          formData.append('profile_image', imageFile);
+          formData.append('image_file', imageFile, imageFile.name);
         }
 
         const res = await fetch('/api/users/me', {
-          method: 'PUT',
-          body: formData, // ✅ no headers
+          method: 'PATCH',
+          body: formData, // ✅ no Content-Type header — browser sets multipart boundary
         });
 
         if (!res.ok) {
