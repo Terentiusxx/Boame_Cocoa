@@ -58,6 +58,7 @@ export const EXPERT_ROUTES = {
   DASHBOARD:     '/expert/dashboard',
   CONSULTATIONS: '/expert/consultations',
   PROFILE:       '/expert/profile',
+  EDIT_PROFILE:  '/expert/profile/edit-profile',
 } as const;
 
 // ─── Session Storage Keys ────────────────────────────────────────────────────

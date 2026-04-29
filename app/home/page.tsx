@@ -51,11 +51,8 @@ async function getUserId(): Promise<number | null> {
 /** Fetch recent scan history and map to DiseaseData for the home page */
 async function getRecentScans(limit = 3): Promise<DiseaseData[]> {
   try {
-    const userId = await getUserId();
-    if (!userId) return [];
-
     const history = unwrapData(
-      await serverApi<{ scans?: HistoryResponse['scans'] }>(`/history/${userId}?limit=${limit}`)
+      await serverApi<{ scans?: HistoryResponse['scans'] }>(`/history/me?limit=${limit}`)
     );
     const scans = (history as HistoryResponse | null)?.scans ?? [];
 

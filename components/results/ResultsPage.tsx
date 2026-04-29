@@ -344,6 +344,7 @@ export default function ResultsPage({
   disease?: DiseaseOut | null;
 }) {
   if (mode === 'unknown' || !disease) {
+    
     return <UnknownResult scanId={scanId} />;
   }
   return <KnownResult scanId={scanId} scan={scan} disease={disease} />;

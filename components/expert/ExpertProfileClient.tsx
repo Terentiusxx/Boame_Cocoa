@@ -4,7 +4,7 @@
  * Expert's own profile editor. Photo upload goes to backend as
  * multipart/form-data image_file — backend sends to Cloudinary.
  *
- * Server fetches (in app/expert/profile/page.tsx):
+ * Server fetches (in app/expert/profile/edit-profile/page.tsx):
  *   GET /experts/profile/me → initialProfile prop
  *
  * Client mutations:
@@ -147,7 +147,7 @@ export default function ExpertProfileClient({
       <div className="flex items-center justify-between px-5 pt-12 pb-4">
         <button
           type="button"
-          onClick={() => router.replace(EXPERT_ROUTES.DASHBOARD)}
+          onClick={() => router.replace(EXPERT_ROUTES.PROFILE)}
           aria-label="Go back"
           className="w-9 h-9 rounded-full bg-gray-100 flex items-center justify-center text-gray-600 hover:bg-gray-200 transition"
         >

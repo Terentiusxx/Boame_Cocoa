@@ -1,6 +1,6 @@
 /**
  * app/expert/dashboard/page.tsx
- * Server Component — fetches expert dashboard stats + profile server-side.
+ * Server Component — fetches expert profile + requests (consultations) server-side.
  */
 import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
@@ -29,7 +29,7 @@ type ExpertProfile = {
   is_verified?: boolean; image_url?: string; city?: string; country?: string;
 };
 
-type DashboardData = Record<string, unknown>;
+type Consultation = Record<string, unknown>;
 
 export default async function ExpertDashboardPage() {
   const jar      = await cookies();
@@ -40,10 +40,15 @@ export default async function ExpertDashboardPage() {
   if (!token || !expertId) redirect(EXPERT_ROUTES.LOGIN);
 
   const base = getBackendUrl();
-  const [profile, dashboard] = await Promise.all([
+  const [profile, consultations] = await Promise.all([
     safeFetch<ExpertProfile>(`${base}/experts/me`, token),
-    safeFetch<DashboardData>(`${base}/experts/dashboard`, token),
+    safeFetch<Consultation[]>(`${base}/experts/consultations/my`, token),
   ]);
 
-  return <ExpertDashboardClient profile={profile} dashboard={dashboard} />;
+  return (
+    <ExpertDashboardClient
+      profile={profile}
+      consultations={consultations ?? []}
+    />
+  );
 }

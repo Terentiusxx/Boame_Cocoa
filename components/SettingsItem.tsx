@@ -10,6 +10,7 @@ interface SettingsItemProps {
   title: string;
   icon?: IconName;
   hasArrow?: boolean;
+  href?: string;
   onClick?: () => void;
 }
 
@@ -18,6 +19,7 @@ export default function SettingsItem({
   title, 
   icon, 
   hasArrow = true, 
+  href,
   onClick 
 }: SettingsItemProps) {
   const router = useRouter();
@@ -25,6 +27,8 @@ export default function SettingsItem({
   const handleClick = () => {
     if (onClick) {
       onClick();
+    } else if (href) {
+      router.push(href);
     } else {
       // Default navigation behavior
       router.push(`/settings/${id}`);

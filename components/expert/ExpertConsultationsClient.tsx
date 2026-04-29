@@ -13,6 +13,7 @@ import { useRouter } from 'next/navigation';
 import { FiArrowLeft, FiClipboard } from 'react-icons/fi';
 import { formatDateTime } from '@/lib/utils';
 import { EXPERT_ROUTES } from '@/lib/constants';
+import ExpertNavbar from '@/components/expert/ExpertNavbar';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -53,7 +54,7 @@ export default function ExpertConsultationsClient({ consultations }: { consultat
     <div className="max-w-mobile mx-auto min-h-screen bg-background relative shadow-mobile">
 
       {/* ── Top bar ──────────────────────────────────────────────────── */}
-      <div className="flex items-center justify-between px-5 pt-12 pb-4">
+      <div className="flex items-center justify-between px-5 pt-8 pb-4">
         <button
           type="button"
           onClick={() => router.replace(EXPERT_ROUTES.DASHBOARD)}
@@ -140,6 +141,8 @@ export default function ExpertConsultationsClient({ consultations }: { consultat
           );
         })}
       </div>
+
+      <ExpertNavbar />
     </div>
   );
 }

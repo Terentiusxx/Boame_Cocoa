@@ -30,15 +30,11 @@ async function getUserId(): Promise<number | null> {
 
 export async function GET(req: Request) {
   try {
-    const userId = await getUserId();
-    if (!userId) {
-      return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
-    }
 
     const { searchParams } = new URL(req.url);
     const limit = searchParams.get('limit') ?? '50';
 
-    return proxyBackendJson(`/history/${userId}?limit=${encodeURIComponent(limit)}`);
+    return proxyBackendJson(`/history/me?limit=${encodeURIComponent(limit)}`);
   } catch (error) {
     return NextResponse.json(
       { message: error instanceof Error ? error.message : 'Failed' },

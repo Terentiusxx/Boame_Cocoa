@@ -20,7 +20,7 @@ const languages: Language[] = [
   { code: 'pt', name: 'Portuguese', nativeName: 'Português' },
 ];
 
-export default function ChangeLanguageClient() {
+export default function ChangeLanguageClient({ backHref = '/settings' }: { backHref?: string }) {
   const [selectedLanguage, setSelectedLanguage] = useState('en');
 
   const handleLanguageChange = (languageCode: string) => {
@@ -35,7 +35,7 @@ export default function ChangeLanguageClient() {
       <div className="pb-6">
         <div className="flex items-center justify-between py-4 mb-6 px-6">
           <Link
-            href="/settings"
+            href={backHref}
             className="bg-transparent border-none text-lg cursor-pointer p-2 rounded-full flex items-center justify-center w-9 h-9 hover:bg-black/5"
           >
             <span className="text-xl">‹</span>

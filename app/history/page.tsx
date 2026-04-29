@@ -25,11 +25,8 @@ async function getUserId(): Promise<number | null> {
 }
 
 export default async function Page() {
-  const userId = await getUserId();
-  if (!userId) return <Historydetails allScans={[]} />;
-
   try {
-    const payload = await serverApi<HistoryResponse>(`/history/${userId}?limit=50`);
+    const payload = await serverApi<HistoryResponse>(`/history/me?limit=50`);
     const data = unwrapData<HistoryResponse>(payload as { data?: HistoryResponse }) ??
       (payload as HistoryResponse);
     return <Historydetails allScans={data?.scans ?? []} />;

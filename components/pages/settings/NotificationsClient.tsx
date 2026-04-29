@@ -4,7 +4,7 @@ import Link from 'next/link';
 
 
 
-export default function NotificationsClient() {
+export default function NotificationsClient({ backHref = '/settings' }: { backHref?: string }) {
   return (
     <div className="max-w-mobile mx-auto min-h-screen bg-background relative shadow-mobile">
        
@@ -12,7 +12,7 @@ export default function NotificationsClient() {
       <div className="pb-6">
         <div className="flex items-center justify-between py-4 mb-6 px-6">
           <Link
-            href="/settings"
+            href={backHref}
             className="bg-transparent border-none text-lg cursor-pointer p-2 rounded-full flex items-center justify-center w-9 h-9 hover:bg-black/5"
           >
             <span className="text-xl">‹</span>

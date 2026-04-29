@@ -39,7 +39,7 @@ const faqs: FAQItem[] = [
   },
 ];
 
-export default function HelpClient() {
+export default function HelpClient({ backHref = '/settings' }: { backHref?: string }) {
   const [expandedFAQ, setExpandedFAQ] = useState<number | null>(null);
   const [contactForm, setContactForm] = useState({
     subject: '',
@@ -64,7 +64,7 @@ export default function HelpClient() {
       <div className="pb-6">
         <div className="flex items-center justify-between py-4 mb-6 px-6">
           <Link
-            href="/settings"
+            href={backHref}
             className="bg-transparent border-none text-lg cursor-pointer p-2 rounded-full flex items-center justify-center w-9 h-9 hover:bg-black/5"
           >
             <span className="text-xl">‹</span>

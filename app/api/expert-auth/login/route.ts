@@ -43,9 +43,9 @@ function extractExpertId(data: Record<string, unknown>, token: string): number |
     if (Number.isFinite(n) && n > 0) return n;
   }
 
-  // Fallback: decode JWT
+  // Fallback: decode JWT — backend uses _id as the claim
   const payload = decodeJwtPayload(token);
-  const fromToken = payload?.expert_id ?? payload?.sub;
+  const fromToken = payload?.expert_id ?? payload?.sub ?? payload?._id;
   if (fromToken == null) return null;
   const n = Number(fromToken);
   return Number.isFinite(n) && n > 0 ? n : null;

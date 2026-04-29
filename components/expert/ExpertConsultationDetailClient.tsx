@@ -18,9 +18,10 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { FiArrowLeft, FiCheck, FiClock, FiMessageCircle, FiUser } from 'react-icons/fi';
+import { FiArrowLeft, FiCheck, FiMessageCircle, FiSend, FiUser } from 'react-icons/fi';
 import { formatDateTime, extractErrorMessage } from '@/lib/utils';
 import { EXPERT_ROUTES } from '@/lib/constants';
+import ExpertNavbar from '@/components/expert/ExpertNavbar';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -62,6 +63,10 @@ export default function ExpertConsultationDetailClient({
   const [actionLoading,   setActionLoading]   = useState<'accept' | 'resolve' | null>(null);
   const [resolutionNote,  setResolutionNote]  = useState(consultation?.resolution_note ?? '');
   const [showResolveForm, setShowResolveForm] = useState(false);
+  const [diagnosis,       setDiagnosis]       = useState('');
+  const [confidence,      setConfidence]      = useState<'Low' | 'Mid' | 'High'>('Mid');
+  const [treatment,       setTreatment]       = useState('');
+  const [expertNotes,     setExpertNotes]     = useState('');
   const [error,           setError]           = useState<string | null>(null);
 
   const doAction = async (action: 'accept' | 'resolve') => {
@@ -83,6 +88,66 @@ export default function ExpertConsultationDetailClient({
       if (action === 'accept')  setStatus('In_Progress');
       if (action === 'resolve') setStatus('Resolved');
       setShowResolveForm(false);
+    } catch (err) {
+      setError(extractErrorMessage(err, 'Connection failed.'));
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
+  const submitDiagnosis = async () => {
+    const primaryObservation = diagnosis.trim();
+    const prescribedTreatment = treatment.trim();
+    const notes = expertNotes.trim();
+
+    if (!primaryObservation) {
+      setError('Please provide a primary observation before submitting.');
+      return;
+    }
+
+    setError(null);
+    setActionLoading('accept');
+
+    const messageContent =
+      `Primary Observation: ${primaryObservation}\n` +
+      `Confidence Level: ${confidence}\n` +
+      `${prescribedTreatment ? `Prescribed Treatment: ${prescribedTreatment}\n` : ''}` +
+      `${notes ? `Expert Notes: ${notes}` : ''}`.trim();
+
+    try {
+      const acceptRes = await fetch(`/api/experts/my-consultations/${consultId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'accept', message: messageContent }),
+      });
+
+      if (!acceptRes.ok) {
+        const payload = await acceptRes.json().catch(() => null) as Record<string, unknown> | null;
+        setError(extractErrorMessage(payload, 'Failed to accept consultation.'));
+        return;
+      }
+
+      const msgRes = await fetch('/api/messages', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          consultation_id: Number(consultId),
+          content: messageContent,
+          message_type: 'text',
+        }),
+      });
+
+      if (!msgRes.ok) {
+        const payload = await msgRes.json().catch(() => null) as Record<string, unknown> | null;
+        setError(extractErrorMessage(payload, 'Consultation accepted, but failed to send expert response.'));
+        setStatus('In_Progress');
+        return;
+      }
+
+      setStatus('In_Progress');
+      setDiagnosis('');
+      setTreatment('');
+      setExpertNotes('');
     } catch (err) {
       setError(extractErrorMessage(err, 'Connection failed.'));
     } finally {
@@ -114,7 +179,7 @@ export default function ExpertConsultationDetailClient({
     <div className="max-w-mobile mx-auto min-h-screen bg-background relative shadow-mobile pb-10">
 
       {/* ── Top bar ──────────────────────────────────────────────────── */}
-      <div className="flex items-center justify-between px-5 pt-12 pb-4">
+      <div className="flex items-center justify-between px-5 pt-8 pb-4">
         <button
           type="button"
           onClick={() => router.replace(EXPERT_ROUTES.CONSULTATIONS)}
@@ -192,20 +257,86 @@ export default function ExpertConsultationDetailClient({
           </div>
         )}
 
-        {/* Action buttons */}
-        <div className="space-y-3 pt-2">
-          {isOpen && (
+        {/* Open consultation diagnosis form */}
+        {isOpen && (
+          <div className="bg-white rounded-2xl border border-gray-100 shadow-card p-4 space-y-4">
+            <h2 className="text-xs font-bold text-brand-sub-text uppercase tracking-widest">Expert Diagnosis</h2>
+
+            <div>
+              <label htmlFor="primary-observation" className="text-xs font-semibold text-gray-700 mb-2 block">
+                Primary Observation (Disease Name)
+              </label>
+              <input
+                id="primary-observation"
+                value={diagnosis}
+                onChange={(e) => setDiagnosis(e.target.value)}
+                placeholder="e.g., Black Pod Rot"
+                className="w-full rounded-2xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm text-gray-800 outline-none focus:border-primary-green focus:ring-2 focus:ring-primary-green/20"
+              />
+            </div>
+
+            <div>
+              <p className="text-xs font-semibold text-gray-700 mb-2">Expert Confidence Level</p>
+              <div className="grid grid-cols-3 gap-2">
+                {(['Low', 'Mid', 'High'] as const).map((level) => (
+                  <button
+                    key={level}
+                    type="button"
+                    onClick={() => setConfidence(level)}
+                    className={`rounded-full border px-3 py-3 text-sm font-semibold transition ${
+                      confidence === level
+                        ? 'bg-primary-green/15 border-primary-green text-primary-green'
+                        : 'bg-white border-gray-200 text-gray-600'
+                    }`}
+                  >
+                    {level}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div>
+              <label htmlFor="prescribed-treatment" className="text-xs font-semibold text-gray-700 mb-2 block">
+                Prescribed Treatment
+              </label>
+              <textarea
+                id="prescribed-treatment"
+                value={treatment}
+                onChange={(e) => setTreatment(e.target.value)}
+                rows={4}
+                placeholder="Describe the steps required for containment and remediation..."
+                className="w-full rounded-2xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm text-gray-800 outline-none focus:border-primary-green focus:ring-2 focus:ring-primary-green/20 resize-none"
+              />
+            </div>
+
+            <div>
+              <label htmlFor="expert-notes" className="text-xs font-semibold text-gray-700 mb-2 block">
+                Expert Notes
+              </label>
+              <textarea
+                id="expert-notes"
+                value={expertNotes}
+                onChange={(e) => setExpertNotes(e.target.value)}
+                rows={3}
+                placeholder="Contextual observations (weather, soil moisture, etc.)"
+                className="w-full rounded-2xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm text-gray-800 outline-none focus:border-primary-green focus:ring-2 focus:ring-primary-green/20 resize-none"
+              />
+            </div>
+
             <button
               type="button"
-              onClick={() => void doAction('accept')}
+              onClick={() => void submitDiagnosis()}
               disabled={!!actionLoading}
               className="w-full flex items-center justify-center gap-2 rounded-brand bg-brand-buttons py-4 text-white font-semibold text-base hover:opacity-90 transition active:scale-95 disabled:opacity-60"
             >
-              <FiClock size={18} />
-              {actionLoading === 'accept' ? 'Accepting…' : 'Accept Consultation'}
+              <FiSend size={18} />
+              {actionLoading === 'accept' ? 'Submitting…' : 'Submit Diagnosis'}
             </button>
-          )}
+          </div>
+        )}
 
+        {/* Action buttons */}
+        <div className="space-y-3 pt-2">
           {isInProgress && !showResolveForm && (
             <button
               type="button"
@@ -248,6 +379,8 @@ export default function ExpertConsultationDetailClient({
           </Link>
         </div>
       </div>
+
+      <ExpertNavbar />
     </div>
   );
 }
