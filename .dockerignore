@@ -1,0 +1,14 @@
+venv/
+__pycache__/
+*.pyc
+.env
+*.zip
+*.tgz
+app/_ai/datasets/
+app/_ai/datasets_raw/
+app/_ai/datasets_merged/
+app/_ai/datasets_clean/
+app/_ai/runs/
+uploads/
+.git/
+*.log
