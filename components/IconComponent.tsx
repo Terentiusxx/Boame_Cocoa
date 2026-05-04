@@ -24,6 +24,7 @@ import {
   FiX,
   FiMenu,
   FiSettings,
+  FiTrash2,
 } from 'react-icons/fi';
 import { LuMessageSquareText, LuBookOpenText, LuLeaf } from 'react-icons/lu';
 import { RiHome3Line } from 'react-icons/ri';
@@ -65,6 +66,7 @@ const iconComponents: Record<string, ComponentType<{ size?: number; className?: 
   'arrow-right': MdOutlineNavigateNext,
   x:             FiX,
   menu:          FiMenu,
+  trash:         FiTrash2,
 };
 
 export default function IconComponent({

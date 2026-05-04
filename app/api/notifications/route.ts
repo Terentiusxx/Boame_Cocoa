@@ -5,5 +5,5 @@
 import { proxyBackendJson } from '@/lib/backendProxy';
 
 export async function GET() {
-  return proxyBackendJson('/notifications');
+  return proxyBackendJson('/notification/');
 }

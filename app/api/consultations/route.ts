@@ -1,6 +1,6 @@
 /**
  * app/api/consultations/route.ts
- * POST /api/consultations → backend POST /consultations
+ * POST /api/consultations → backend POST /consultations/
  *
  * Creates a consultation request between the user and a selected expert.
  * Optionally includes a scan_id to link the consultation to a specific scan.
@@ -69,8 +69,12 @@ export async function POST(req: Request) {
     const rawScanId = Number(payload.scan_id);
     const scanId = Number.isFinite(rawScanId) && rawScanId > 0 ? rawScanId : undefined;
 
+    if (!scanId) {
+      return NextResponse.json({ message: 'scan_id is required to create a consultation' }, { status: 400 });
+    }
+
     // Infer priority from scan if available; otherwise default to Medium
-    const priority = scanId ? await getPriorityFromScan(scanId) : 'Medium';
+    const priority = await getPriorityFromScan(scanId);
 
     const body = {
       user_id: userId,
@@ -81,7 +85,7 @@ export async function POST(req: Request) {
       priority,
     };
 
-    return proxyBackendJson('/consultations', {
+    return proxyBackendJson('/consultations/', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(body),
@@ -95,5 +99,5 @@ export async function POST(req: Request) {
 }
 
 export async function GET() {
-  return proxyBackendJson('/consultations');
+  return proxyBackendJson('/consultations/');
 }

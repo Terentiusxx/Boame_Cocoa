@@ -102,6 +102,7 @@ export type HistoryResponse = {
 }
 
 export type ScanItem = {
+  history_id: number
   scan_id: number
   disease_name: string
   urgency_level: string

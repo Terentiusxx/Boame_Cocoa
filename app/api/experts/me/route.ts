@@ -29,7 +29,7 @@ export async function GET() {
   if (!auth) return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
 
   try {
-    const res = await fetch(`${getBackendUrl()}/experts/profile/me`, {
+    const res = await fetch(`${getBackendUrl()}/experts/me`, {
       headers: { Authorization: toBearerHeader(auth.token) },
       cache: 'no-store',
     });

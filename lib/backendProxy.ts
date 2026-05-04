@@ -15,7 +15,7 @@
 import { cookies } from 'next/headers';
 import { NextResponse } from 'next/server';
 import { isDev, getMockResponse } from './devMode';
-import { COOKIE_NAME } from './constants';
+import { COOKIE_NAME, EXPERT_COOKIE_NAME } from './constants';
 
 // ─── Internal Helpers ─────────────────────────────────────────────────────────
 
@@ -59,7 +59,9 @@ function toAuthHeader(token: string): string {
  * Returns undefined if no session exists.
  */
 async function getAuthToken(): Promise<string | undefined> {
-  return (await cookies()).get(COOKIE_NAME)?.value;
+  const jar = await cookies();
+  // Prefer user session, fall back to expert session.
+  return jar.get(COOKIE_NAME)?.value ?? jar.get(EXPERT_COOKIE_NAME)?.value;
 }
 
 // ─── Public API ───────────────────────────────────────────────────────────────

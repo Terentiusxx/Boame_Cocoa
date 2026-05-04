@@ -16,38 +16,88 @@ import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { FiArrowLeft, FiSend } from 'react-icons/fi';
 import { extractErrorMessage, formatTime } from '@/lib/utils';
+import { mergeMessageLists, normalizeThreadMessages, type ChatMessage, type ChatRole } from '@/lib/messages';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
-type Message = {
-  message_id: number;
-  sender: 'user' | 'expert';
-  content: string;
-  created_at: string;
-};
+type LocalMessage = ChatMessage & { pending?: boolean };
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export default function MessageThreadClient({
   threadId,
   initialMessages,
+  viewerRole,
+  viewerId,
 }: {
   threadId: string;
-  initialMessages: Message[];
+  initialMessages: ChatMessage[];
+  viewerRole: ChatRole;
+  viewerId?: number;
 }) {
   const router = useRouter();
   const bottomRef = useRef<HTMLDivElement>(null);
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const [stickToBottom, setStickToBottom] = useState(true);
 
   // Seed messages from server-fetched prop — no useEffect GET needed
-  const [messages,  setMessages]  = useState<Message[]>(initialMessages);
+  const [messages,  setMessages]  = useState<LocalMessage[]>(initialMessages as LocalMessage[]);
   const [input,     setInput]     = useState('');
   const [sending,   setSending]   = useState(false);
   const [sendError, setSendError] = useState<string | null>(null);
 
-  // Scroll to bottom on initial load and when messages change
+  const isMine = (msg: ChatMessage): boolean => {
+    if (typeof viewerId === 'number' && typeof msg.sender_id === 'number') return msg.sender_id === viewerId;
+    if (msg.sender) return msg.sender === viewerRole;
+    return false;
+  };
+
+  const reconcileWithServer = (prev: LocalMessage[], server: ChatMessage[]): LocalMessage[] => {
+    const pending = prev.filter((m) => m.pending === true);
+    const serverList = server as LocalMessage[];
+
+    // Drop pending messages that are now confirmed by the server.
+    const keepPending = pending.filter((p) => {
+      const tp = Date.parse(p.created_at);
+      return !server.some((s) => {
+        if (!isMine(s)) return false;
+        if ((s.content ?? '').trim() !== (p.content ?? '').trim()) return false;
+        const ts = Date.parse(s.created_at);
+        // If timestamps are invalid, don't treat as confirmed.
+        if (!Number.isFinite(tp) || !Number.isFinite(ts)) return false;
+        return Math.abs(ts - tp) < 60_000;
+      });
+    });
+
+    return mergeMessageLists(serverList, keepPending) as LocalMessage[];
+  };
+
+  const refreshMessages = async () => {
+    try {
+      const res = await fetch(`/api/messages/${threadId}?as=${viewerRole}`, { cache: 'no-store' });
+      if (!res.ok) return;
+      const payload = await res.json().catch(() => null);
+      const list = normalizeThreadMessages(payload);
+      if (list.length === 0) return;
+      setMessages((prev) => reconcileWithServer(prev, list));
+    } catch {
+      // ignore refresh errors (offline, etc.)
+    }
+  };
+
+  // Poll for new messages (simple + reliable; websockets can be added later)
   useEffect(() => {
+    void refreshMessages();
+    const id = window.setInterval(() => { void refreshMessages(); }, 4000);
+    return () => window.clearInterval(id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [threadId]);
+
+  // Scroll to bottom on initial load and when messages change (only if user is already near bottom)
+  useEffect(() => {
+    if (!stickToBottom) return;
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages]);
+  }, [messages, stickToBottom]);
 
   const handleSend = async () => {
     const text = input.trim();
@@ -57,20 +107,27 @@ export default function MessageThreadClient({
     setSending(true);
 
     // Optimistic update — show the message immediately in the UI
-    const optimistic: Message = {
+    const optimistic: LocalMessage = {
       message_id: Date.now(),
-      sender: 'user',
+      sender: viewerRole,
+      sender_id: viewerId,
       content: text,
       created_at: new Date().toISOString(),
+      pending: true,
     };
     setMessages((prev) => [...prev, optimistic]);
     setInput('');
 
     try {
-      const res = await fetch(`/api/messages/${threadId}`, {
+      const res = await fetch('/api/messages', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ content: text }),
+        body: JSON.stringify({
+          consultation_id: Number(threadId),
+          content: text,
+          message_type: 'text',
+          sender_role: viewerRole,
+        }),
       });
 
       if (!res.ok) {
@@ -79,7 +136,11 @@ export default function MessageThreadClient({
         setInput(text);
         const payload = await res.json().catch(() => null);
         setSendError(extractErrorMessage(payload, 'Failed to send message.'));
+        return;
       }
+
+      // Sync from server after a successful send (removes pending placeholder)
+      await refreshMessages();
     } catch (err) {
       // Revert optimistic message on network error
       setMessages((prev) => prev.filter((m) => m.message_id !== optimistic.message_id));
@@ -108,26 +169,35 @@ export default function MessageThreadClient({
       </div>
 
       {/* ── Messages ───────────────────────────────────────────────────────── */}
-      <div className="flex-1 overflow-y-auto px-4 py-4 space-y-3">
+      <div
+        ref={scrollRef}
+        className="flex-1 overflow-y-auto px-4 py-4 space-y-3"
+        onScroll={() => {
+          const el = scrollRef.current;
+          if (!el) return;
+          const distance = el.scrollHeight - el.scrollTop - el.clientHeight;
+          setStickToBottom(distance < 140);
+        }}
+      >
 
         {messages.length === 0 && (
           <p className="text-center text-sm text-gray-500 py-10">No messages yet. Say hello!</p>
         )}
 
         {messages.map((msg) => {
-          const isUser = msg.sender === 'user';
+          const mine = isMine(msg);
           return (
-            <div key={msg.message_id} className={`flex ${isUser ? 'justify-end' : 'justify-start'}`}>
+            <div key={msg.message_id} className={`flex ${mine ? 'justify-end' : 'justify-start'}`}>
               <div
                 className={
                   'max-w-[78%] rounded-2xl px-4 py-2.5 text-sm ' +
-                  (isUser
+                  (mine
                     ? 'bg-brand-buttons text-white rounded-tr-none'
                     : 'bg-white text-gray-900 shadow-card rounded-tl-none')
                 }
               >
                 <p className="leading-relaxed">{msg.content}</p>
-                <p className={`text-[10px] mt-1 ${isUser ? 'text-white/70' : 'text-gray-400'}`}>
+                <p className={`text-[10px] mt-1 ${mine ? 'text-white/70' : 'text-gray-400'}`}>
                   {formatTime(msg.created_at)}
                 </p>
               </div>

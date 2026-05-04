@@ -12,12 +12,12 @@
  */
 'use client';
 
-import { useState, type FormEvent } from 'react';
+import { useState, useEffect, type FormEvent } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { FiArrowLeft } from 'react-icons/fi';
 import { extractErrorMessage } from '@/lib/utils';
-import { ROUTES } from '@/lib/constants';
+import { ROUTES, SESSION_KEYS } from '@/lib/constants';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -46,6 +46,19 @@ export default function ContactFormClient({
   const [loading,     setLoading]     = useState(false);
   const [error,       setError]       = useState<string | null>(null);
   const [success,     setSuccess]     = useState(false);
+  // Prefer prop scan_id; fall back to the last scan stored in sessionStorage
+  const [resolvedScanId, setResolvedScanId] = useState<number | undefined>(
+    scanId ? Number(scanId) : undefined
+  );
+
+  useEffect(() => {
+    if (resolvedScanId) return; // already have one from props
+    const stored = sessionStorage.getItem(SESSION_KEYS.SCAN_ID);
+    if (stored) {
+      const n = Number(stored);
+      if (Number.isFinite(n) && n > 0) setResolvedScanId(n);
+    }
+  }, [resolvedScanId]);
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
@@ -64,7 +77,7 @@ export default function ContactFormClient({
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           expert_id:   expertId ? Number(expertId) : undefined,
-          scan_id:     scanId   ? Number(scanId)   : undefined,
+          scan_id:     resolvedScanId,
           subject:     subject.trim() || 'Expert help request',
           description: description.trim(),
         }),

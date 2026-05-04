@@ -130,16 +130,25 @@ export function getDiseaseLocalImage(diseaseName?: string | null): string {
   const v = (diseaseName ?? '').trim().toLowerCase();
 
   if (!v || v.includes('unknown') || v.includes("wasn't able") || v.includes('unable')) {
-    return '/img/unknown.png';
+    return '/img/unknown_r.png';
   }
   if (v.includes('cssvd') || v.includes('swollen shoot') || v.includes('swollen')) {
-    return '/img/ccsvd.png';
+    return '/img/ccsvd_r.png';
   }
   if (v.includes('black pod') || v.includes('blackpod')) {
-    return '/img/blackpod.png';
+    return '/img/blackpod_r.png';
   }
   if (v.includes('vascular') || (v.includes('streak') && v.includes('dieback'))) {
-    return '/img/vascularstreak.png';
+    return '/img/vsd_r.png';
+  }
+  if (v.includes('witches') || (v.includes('broom'))) {
+    return '/img/witches_r.png';
+  }
+  if (v.includes('frosty') || (v.includes('pod rot'))) {
+    return '/img/frosty_r.png';
+  }
+  if (v.includes('pest')) {
+    return '/img/pest_r.png';
   }
 
   return '/img/unknown.png';

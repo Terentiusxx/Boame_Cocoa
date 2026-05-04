@@ -102,15 +102,6 @@ export default function HomeUI({
           </h1>
 
           <div className="flex items-center gap-2">
-            {/* Messages icon */}
-            <Link
-              href={ROUTES.MESSAGES}
-              aria-label="Open messages"
-              className="flex h-11 w-11 items-center justify-center rounded-full bg-white text-brand-buttons shadow-sm transition hover:bg-green-50"
-            >
-              <IconComponent icon="messages" size={20} />
-            </Link>
-
             {/* Notifications bell */}
             <Dialog
               open={dialogOpen}
@@ -182,7 +173,17 @@ export default function HomeUI({
 
         {/* ── Recent Scans ────────────────────────────────────────────────── */}
         <div className="mt-8">
-          <h2 className="text-base font-bold text-brand-text-titles mb-4">Previous Scans</h2>
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-base font-bold text-brand-text-titles">Previous Scans</h2>
+            {recentScans.length > 0 && (
+              <Link
+                href={ROUTES.HISTORY}
+                className="text-sm font-medium text-brand-buttons hover:underline"
+              >
+                View more
+              </Link>
+            )}
+          </div>
 
           {recentScans.length === 0 && (
             <p className="text-sm text-brand-sub-text">No scans yet. Tap the scan button to get started.</p>

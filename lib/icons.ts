@@ -34,6 +34,7 @@ export const ICON_MAP = {
   forward:  'arrow-right',
   close:    'x',
   menu:     'menu',
+  trash:    'trash',
 } as const;
 
 /** Union of all valid icon name strings — used to type the `icon` prop */

@@ -134,6 +134,7 @@ export default function ExpertConsultationDetailClient({
           consultation_id: Number(consultId),
           content: messageContent,
           message_type: 'text',
+          sender_role: 'expert',
         }),
       });
 
@@ -371,7 +372,7 @@ export default function ExpertConsultationDetailClient({
 
           {/* Message thread link */}
           <Link
-            href={`/messages/${consultation.consult_id}`}
+            href={`/messages/${consultation.consult_id}?as=expert`}
             className="flex items-center justify-center gap-2 w-full rounded-brand bg-gray-100 border border-gray-200 py-4 text-gray-800 font-semibold text-base hover:bg-gray-200 transition active:scale-95"
           >
             <FiMessageCircle size={18} />

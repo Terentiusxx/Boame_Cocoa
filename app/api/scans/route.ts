@@ -76,7 +76,7 @@ export async function POST(req: Request) {
       const scanId = extractScanId(json);
       if (scanId) {
         // Single attempt — history registration is non-critical
-        await backendFetch(`/history/${userId}/${scanId}`, { method: 'POST' }).catch(() => null);
+        await backendFetch(`/history/add/${scanId}`, { method: 'POST' }).catch(() => null);
       }
     }
 

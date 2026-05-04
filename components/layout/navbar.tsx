@@ -11,7 +11,6 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { FiUsers } from 'react-icons/fi';
 import IconComponent from '@/components/IconComponent';
 import { ICON_MAP } from '@/lib/icons';
 import { ROUTES } from '@/lib/constants';
@@ -60,14 +59,14 @@ export default function BottomNavigation() {
       <div className="max-w-mobile mx-auto px-6 pb-5">
         <nav className="relative bg-background rounded-2xl px-4 py-3">
           <div className="flex items-center justify-between">
-            {/* Left side: Home + Experts */}
+            {/* Left side: Home + Messages */}
             <div className="flex items-center gap-3">
               <NavItem href={ROUTES.HOME} label="Home" active={isActive(pathname, ROUTES.HOME)}>
                 <IconComponent icon={ICON_MAP.home} size={24} />
               </NavItem>
 
-              <NavItem href={ROUTES.CONTACT} label="Experts" active={isActive(pathname, ROUTES.CONTACT)}>
-                <FiUsers size={24} />
+              <NavItem href={ROUTES.MESSAGES} label="Messages" active={isActive(pathname, ROUTES.MESSAGES)}>
+                <IconComponent icon={ICON_MAP.messages} size={24} />
               </NavItem>
             </div>
 

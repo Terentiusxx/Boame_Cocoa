@@ -66,8 +66,9 @@ export const EXPERT_ROUTES = {
 // ProcessingClient writes these; ResultsPage reads them.
 
 export const SESSION_KEYS = {
-  SCAN_IMAGE: 'scan_image',   // blob: or data: URL of the captured image
-  SCAN_ID: 'scan_id',         // numeric scan ID returned by the backend after upload
+  SCAN_IMAGE: 'scan_image',       // blob: or data: URL of the captured image (cleared after upload)
+  SCAN_IMAGE_URL: 'scan_image_url', // backend-hosted image URL returned from /ai/predict
+  SCAN_ID: 'scan_id',             // numeric scan ID returned by the backend after upload
   SCAN_PREDICTION: 'scan_prediction', // JSON-stringified { disease_id, confidence_score, created_at }
 } as const;
 

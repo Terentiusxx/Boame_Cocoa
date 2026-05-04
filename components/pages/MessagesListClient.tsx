@@ -19,6 +19,7 @@ import { ROUTES } from '@/lib/constants';
 type Thread = {
   thread_id: number;
   expert_id: number;
+  user_id?: number;
   last_message?: string;
   updated_at?: string;
   unread_count?: number;
@@ -26,7 +27,13 @@ type Thread = {
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
-export default function MessagesListClient({ threads }: { threads: Thread[] }) {
+export default function MessagesListClient({
+  threads,
+  viewerRole,
+}: {
+  threads: Thread[];
+  viewerRole: 'user' | 'expert';
+}) {
   const router = useRouter();
 
   return (
@@ -50,15 +57,8 @@ export default function MessagesListClient({ threads }: { threads: Thread[] }) {
         {/* ── Empty state ─────────────────────────────────────────────────── */}
         {threads.length === 0 && (
           <div className="flex flex-col items-center justify-center py-20 gap-4 text-center">
-            <FiMessageCircle size={48} className="text-gray-300" />
-            <p className="text-sm text-gray-500">No messages yet.</p>
-            <button
-              type="button"
-              onClick={() => router.push(ROUTES.CONTACT)}
-              className="rounded-brand bg-brand-buttons px-6 py-3 text-sm font-semibold text-white hover:opacity-90 transition"
-            >
-              Talk to an Expert
-            </button>
+            <FiMessageCircle size={64} className="text-gray-300" />
+            <p className="text-xl text-gray-500">No messages yet.</p>
           </div>
         )}
 
@@ -69,18 +69,22 @@ export default function MessagesListClient({ threads }: { threads: Thread[] }) {
               <button
                 key={thread.thread_id}
                 type="button"
-                onClick={() => router.push(`/messages/${thread.thread_id}`)}
+                onClick={() => router.push(`/messages/${thread.thread_id}?as=${viewerRole}`)}
                 className="w-full text-left bg-white rounded-brand p-4 shadow-card hover:shadow-card-hover transition flex items-center gap-3"
               >
                 {/* Initials avatar — expert name not loaded here to keep it simple */}
                 <div className="w-12 h-12 rounded-full bg-primary-green flex items-center justify-center text-white font-bold text-sm shrink-0">
-                  E{thread.expert_id}
+                  {viewerRole === 'expert'
+                    ? `U${thread.user_id ?? ''}`
+                    : `E${thread.expert_id}`}
                 </div>
 
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center justify-between gap-2">
                     <p className="font-semibold text-sm text-gray-900 truncate">
-                      Expert #{thread.expert_id}
+                      {viewerRole === 'expert'
+                        ? `Farmer #${thread.user_id ?? '—'}`
+                        : `Expert #${thread.expert_id}`}
                     </p>
                     {thread.updated_at && (
                       <p className="text-xs text-gray-400 shrink-0">

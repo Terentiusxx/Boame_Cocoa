@@ -72,14 +72,17 @@ export async function POST(req: Request) {
 
     const json = await res.json().catch(() => null);
 
-    // Best-effort: save scan to history so it shows up on the home page
+    // Best-effort: save scan to history — only when a disease was actually identified.
+    // Unknown/undetected results (disease_id null) are not saved to history.
     if (res.ok) {
       const scanId = extractScanId(json);
-      if (scanId) {
-        const userId = await getUserId();
-        if (userId) {
-          await backendFetch(`/history/${userId}/${scanId}`, { method: 'POST' }).catch(() => null);
-        }
+      const data = (json && typeof json === 'object' && 'data' in json)
+        ? (json as Record<string, unknown>).data as Record<string, unknown>
+        : json as Record<string, unknown>;
+      const diseaseId = data?.disease_id ?? data?.predicted_disease;
+      const isKnown = diseaseId != null && diseaseId !== '' && diseaseId !== 0;
+      if (scanId && isKnown) {
+        await backendFetch(`/history/add/${scanId}`, { method: 'POST' }).catch(() => null);
       }
     }
 

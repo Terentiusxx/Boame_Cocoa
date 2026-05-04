@@ -378,6 +378,7 @@ export function getMockResponse(
         disease_id: 1,
         predicted_disease: 'Black Pod Disease',
         confidence_score: 0.87,
+        image_url: '/img/blackpod_r.png',
         recommendations: ['Apply fungicide', 'Monitor regularly'],
       },
     };
@@ -418,6 +419,11 @@ export function getMockResponse(
     return { status: 200, data: { total_scans: mockScans.length, scans } };
   }
 
+  // Save scan to history (POST /history/add)
+  if (p === '/history/add' && v === 'POST') {
+    return { status: 201, data: { ok: true } };
+  }
+
   // Save scan to history (POST /history/:userId/:scanId)
   if (/^\/history\/\d+\/\d+$/.test(p) && v === 'POST') {
     return { status: 201, data: { ok: true } };
@@ -442,22 +448,123 @@ export function getMockResponse(
   }
 
   if (p === '/consultations' && v === 'POST') {
+    const now = new Date().toISOString();
     const next = {
       consultation_id: mockConsultations.length + 1,
       user_id: mockUser.user_id,
       status: 'pending',
-      created_at: new Date().toISOString(),
+      created_at: now,
       ...(body ?? {}),
     };
+
     mockConsultations.push(next as typeof mockConsultations[0]);
+
+    // In real backend, a consultation usually becomes a messaging thread.
+    // In dev mode, create a thread + seed the first message from the request.
+    const b = (body ?? {}) as Record<string, unknown>;
+    const expertId = typeof b.expert_id === 'number' ? b.expert_id : (mockExperts[0]?.expert_id ?? 101);
+    const threadId = (next as Record<string, unknown>).consultation_id as number;
+    const initialText = String(b.description ?? b.subject ?? 'New consultation').trim();
+
+    const existingThread = mockThreads.find((t) => t.thread_id === threadId);
+    if (!existingThread) {
+      mockThreads.push({
+        thread_id: threadId,
+        expert_id: expertId,
+        user_id: mockUser.user_id,
+        last_message: initialText,
+        updated_at: now,
+        unread_count: 0,
+      });
+    }
+
+    const lastMessageId = mockMessages.length > 0 ? (mockMessages[mockMessages.length - 1]?.message_id ?? 0) : 0;
+    const nextMessageId = lastMessageId + 1;
+    mockMessages.push({
+      message_id: nextMessageId,
+      thread_id: threadId,
+      sender: 'user' as const,
+      content: initialText,
+      created_at: now,
+    });
+
+    // Update thread metadata
+    const thread = mockThreads.find((t) => t.thread_id === threadId);
+    if (thread) {
+      thread.last_message = initialText;
+      thread.updated_at = now;
+    }
+
     return { status: 201, data: next };
   }
 
   // ── Messages ──────────────────────────────────────────────────────────────
 
-  // List all threads for the current user
-  if (p === '/messages' && v === 'GET') {
+  // List all conversation threads for the current user
+  if (p === '/messages/messages/conversations' && v === 'GET') {
     return { status: 200, data: mockThreads };
+  }
+
+  // Create a message (POST /messages/messages/)
+  if (p === '/messages/messages/' && v === 'POST') {
+    const b = (body ?? {}) as Record<string, unknown>;
+    const consultationId = parseInt(String(b.consultation_id ?? b.thread_id ?? '0'));
+    const content = String(b.content ?? '').trim();
+    const senderId = parseInt(String(b.sender_id ?? mockUser.user_id));
+    const messageType = String(b.message_type ?? 'text');
+    const now = new Date().toISOString();
+
+    if (!Number.isFinite(consultationId) || consultationId <= 0) {
+      return { status: 400, error: 'Missing consultation_id' };
+    }
+    if (!content) {
+      return { status: 400, error: 'Message content cannot be empty' };
+    }
+
+    const sender = senderId === mockUser.user_id ? ('user' as const) : ('expert' as const);
+    const lastMessageId = mockMessages.length > 0 ? (mockMessages[mockMessages.length - 1]?.message_id ?? 0) : 0;
+    const nextMessageId = lastMessageId + 1;
+
+    mockMessages.push({
+      message_id: nextMessageId,
+      thread_id: consultationId,
+      sender,
+      content,
+      created_at: now,
+    });
+
+    // Update / create the thread
+    let thread = mockThreads.find((t) => t.thread_id === consultationId);
+    if (!thread) {
+      const expertId = mockExperts[0]?.expert_id ?? 101;
+      thread = {
+        thread_id: consultationId,
+        expert_id: expertId,
+        user_id: mockUser.user_id,
+        last_message: content,
+        updated_at: now,
+        unread_count: 0,
+      };
+      mockThreads.push(thread);
+    }
+
+    thread.last_message = content;
+    thread.updated_at = now;
+    // Approximate unread behaviour for the farmer's inbox.
+    if (sender === 'expert') thread.unread_count = (thread.unread_count ?? 0) + 1;
+
+    return {
+      status: 201,
+      data: {
+        message_id: nextMessageId,
+        consultation_id: consultationId,
+        sender_id: senderId,
+        content,
+        message_type: messageType,
+        is_read: false,
+        created_at: now,
+      },
+    };
   }
 
   // Get messages in a specific thread
@@ -471,8 +578,8 @@ export function getMockResponse(
     return { status: 200, data: { thread, messages } };
   }
 
-  // Messages for a consultation (treated as thread in dev)
-  if (/^\/messages\/consultation\/\d+$/.test(p) && v === 'GET') {
+  // Messages for a consultation (GET /messages/messages/consultation/{id})
+  if (/^\/messages\/messages\/consultation\/\d+$/.test(p) && v === 'GET') {
     const id = parseInt(p.split('/').pop() ?? '0');
     const messages = mockMessages
       .filter((m) => m.thread_id === id)
@@ -483,6 +590,8 @@ export function getMockResponse(
         sender_id: m.sender === 'user'
           ? mockUser.user_id
           : (mockThreads.find((t) => t.thread_id === id)?.expert_id ?? 0),
+        message_type: 'text',
+        is_read: false,
         created_at: m.created_at,
       }))
       .sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
@@ -491,7 +600,7 @@ export function getMockResponse(
 
   // ── Notifications ─────────────────────────────────────────────────────────
 
-  if (p === '/notifications' && v === 'GET') {
+  if (p === '/notification/' && v === 'GET') {
     return { status: 200, data: mockNotifications };
   }
 
